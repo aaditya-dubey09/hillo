@@ -1,9 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 
-export const errorHandler = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
+interface CustomError extends Error {
+    statusCode?: number;
+}
+
+export const errorHandler = (err: CustomError, _req: Request, res: Response, _next: NextFunction) => {
     console.error("Error: ", err.message);
 
-    const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
+    const statusCode = err.statusCode || 500;
     const isDevelopment = process.env.NODE_ENV === 'development';
 
     console.error(`[Error Handler] Status: ${statusCode} | Message: ${err.message}`);

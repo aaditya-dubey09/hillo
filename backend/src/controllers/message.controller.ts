@@ -1,0 +1,26 @@
+import type { NextFunction, Response } from 'express';
+import type { AuthRequest } from '../middleware/auth';
+import { Message } from '../models/message';
+import { Chat } from '../models/chat';
+import { AppError } from '../utils/AppError';
+
+export async function getMessages(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const userId = req.userId;
+        const { chatId } = req.params;
+        const chat = await Chat.findOne({
+            _id: chatId,
+            participants: userId
+        });
+
+        if (!chat) {
+            return next(new AppError("Chat not found", 404));
+        }
+
+        const messages = await Message.find({ chatId: chatId }).populate('sender', 'name email avatar').sort({ createdAt: 1 });
+
+        res.status(200).json(messages);
+    } catch (error) {
+        next(error);
+    }
+}
