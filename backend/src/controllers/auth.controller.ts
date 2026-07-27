@@ -2,6 +2,7 @@ import type { AuthRequest } from '../middleware/auth';
 import type { Request, Response, NextFunction } from 'express';
 import { User } from '../models/user';
 import { getAuth, clerkClient } from '@clerk/express';
+import { AppError } from '../utils/AppError';
 
 export async function getMe(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -10,7 +11,7 @@ export async function getMe(req: AuthRequest, res: Response, next: NextFunction)
         const user = await User.findById(userId).select('-password');
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return next(new AppError("User not found", 404));
         }
 
         res.status(200).json(user);
@@ -24,7 +25,7 @@ export async function authCallback(req: Request, res: Response, next: NextFuncti
         const { userId: clerkId } = getAuth(req);
 
         if (!clerkId) {
-            return res.status(401).json({ message: "Unauthorized - invalid token" });
+            return next(new AppError("Unauthorized - invalid token", 401));
         }
 
         let user = await User.findOne({ clerkId });
