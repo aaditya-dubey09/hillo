@@ -1,5 +1,6 @@
 import type { AuthRequest } from '../middleware/auth';
 import type { Response, NextFunction } from 'express';
+import { User } from '../models/user';
 import { Chat } from '../models/chat';
 import { AppError } from '../utils/AppError';
 import { Types } from 'mongoose';
@@ -46,12 +47,17 @@ export async function getOrCreateChat(req: AuthRequest, res: Response, next: Nex
             return next(new AppError("Participant ID is required", 400));
         }
 
-        if (!Types.ObjectId.isValid(participantId)) {
+        if (typeof participantId !== 'string' || !Types.ObjectId.isValid(participantId)) {
             return next(new AppError("Invalid participant ID", 400));
         }
 
         if (userId === participantId) {
             return next(new AppError("Cannot create chat with yourself", 400));
+        }
+
+        const participantExists = await User.exists({ _id: participantId });
+        if (!participantExists) {
+            return next(new AppError("Participant not found", 404));
         }
 
         let chat = await Chat.findOne({
