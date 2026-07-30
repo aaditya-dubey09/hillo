@@ -7,18 +7,15 @@ import { User } from "../models/user";
 import { AppError } from "./AppError";
 import mongoose, { Types } from "mongoose";
 
-interface SocketWithUserId extends Socket {
-    userId: string;
-}
-
 export const onlineUsers: Map<string, Set<string>> = new Map();
 
 export const initializeSocket = (httpServer: HttpServer) => {
     const allowedOrigins = [
         "http://localhost:5173",
         "http://localhost:8081",
-        process.env.FRONTEND_URL as string,
-    ];
+        process.env.FRONTEND_URL,
+    ].filter(Boolean) as string[];
+
     const io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } })
 
     // verify socket connection
@@ -35,7 +32,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
             if (!user) {
                 return next(new AppError("User not found", 404));
             }
-            (socket as SocketWithUserId).userId = user._id.toString();
+            socket.data.userId = user._id.toString();
             next();
         } catch (error) {
             return next(new AppError("Invalid authentication token", 401));
@@ -43,7 +40,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
     })
 
     io.on("connection", (socket) => {
-        const userId = (socket as SocketWithUserId).userId;
+        const userId = socket.data.userId;
 
         const userSockets = onlineUsers.get(userId) || new Set<string>();
         const isFirstConnection = userSockets.size === 0;
@@ -119,7 +116,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 session.endSession();
 
                 // Populate sender details for emission
-                await message.populate("sender", "name email avatar");
+                await message.populate("sender", "name avatar");
 
                 // emit to chat room (for user inside active chat)
                 io.to(`chat: ${chatId}`).emit("new-message", message);
