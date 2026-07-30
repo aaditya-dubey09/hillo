@@ -1,6 +1,9 @@
 # use the official Bun image
 FROM oven/bun:latest
 
+# Upgrade Bun to the canary channel containing the Mongoose isBuildingSnapshot fix
+RUN bun upgrade --canary
+
 WORKDIR /app
 
 # build web frontend
