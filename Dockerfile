@@ -1,8 +1,5 @@
-# use the official Bun image
-FROM oven/bun:latest
-
-# Upgrade Bun to the canary channel containing the Mongoose isBuildingSnapshot fix
-RUN bun upgrade --canary
+# Install bun from the canary channel to get the Mongoose isBuildingSnapshot fix
+FROM oven/bun:canary
 
 WORKDIR /app
 
