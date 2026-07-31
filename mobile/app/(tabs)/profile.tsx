@@ -1,7 +1,7 @@
 import { ScrollView, Text } from 'react-native'
 import React from 'react'
 
-const ChatTab = () => {
+const ProfileTab = () => {
     return (
         <ScrollView
             className="bg-surface"
@@ -12,4 +12,4 @@ const ChatTab = () => {
     );
 };
 
-export default ChatTab
+export default ProfileTab
