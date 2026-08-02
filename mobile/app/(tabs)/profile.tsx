@@ -14,7 +14,7 @@ const ProfileTab = () => {
                 className="mt-4 bg-red-600 px-4 py-2 rounded-lg"
             >
                 <Text className="text-white">Sign Out</Text>
-            </Pressable>
+                </Pressable>
         </ScrollView>
         </SafeAreaView>
     );
