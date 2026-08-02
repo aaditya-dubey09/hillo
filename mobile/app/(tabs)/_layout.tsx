@@ -6,7 +6,7 @@ const TabsLayout = () => {
     const { isSignedIn, isLoaded } = useAuth();
 
     if (!isLoaded) return null;
-    if (isSignedIn) return <Redirect href="/(auth)" />;
+    if (!isSignedIn) return <Redirect href="/(auth)" />;
 
     return (
         <Tabs
@@ -18,7 +18,7 @@ const TabsLayout = () => {
                     borderTopWidth: 1,
                     height: 58, // 88 for ios
                     paddingTop: 8,
-                }
+                },
             }}
         >
             <Tabs.Screen
