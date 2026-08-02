@@ -17,10 +17,14 @@ Sentry.init({
 
   // Enable Logs
   enableLogs: true,
+  tracesSampleRate: __DEV__ ? 0.0 : 0.01,
+
+  // Completely disables error reporting in local development
+  enabled: !__DEV__,
 
   // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
+  replaysSessionSampleRate: 0.0,
+  replaysOnErrorSampleRate: __DEV__ ? 0.0 : 1,
   integrations: [
     Sentry.mobileReplayIntegration(), 
     Sentry.reactNativeTracingIntegration({

@@ -6,36 +6,37 @@ import * as Sentry from "@sentry/react-native";
 const AuthSync = () => {
     const { isSignedIn } = useAuth();
     const { user } = useUser();
-    const { mutate: syncUser } = useAuthCallback();
-    const hasSynced = useRef(false); // this is used to not run useEffect more than once
+    const { mutate: syncUser, status } = useAuthCallback();
+    const wasSignedIn = useRef(false); // ref to know if we need to clear state on sign-out
 
     useEffect(() => {
-        if (isSignedIn && user && !hasSynced.current) {
-            hasSynced.current = true; // set to true to prevent future calls
+        if (isSignedIn && user && status === "idle") {
+            wasSignedIn.current = true;
             syncUser(undefined, {
                 onSuccess: (data) => {
                     console.log("User synced successfully");
-                    Sentry.logger.info(Sentry.logger.fmt`User synced with backend: ${data.name}`, {
-                        userId: user.id,
-                        username: data.name,
+                    Sentry.captureMessage("User synced with backend", {
+                        level: "info",
+                        tags: { userId: user.id },
                     });
                 },
                 onError: (error) => {
                     console.error("Error syncing user:", error);
-                    Sentry.logger.error("Failed to sync user with backend", {
-                        userId: user.id,
-                        error: error instanceof Error ? error.message : String(error),
+                    Sentry.captureException("Failed to sync user with backend", {
+                        level: "error",
+                        tags: { userId: user.id },
                     });
                 },
             });
         }
 
-        if (!isSignedIn) {
-            hasSynced.current = false; // reset to allow future syncs when user signs in again
+        // Sign out reset
+        if (!isSignedIn && wasSignedIn.current) {
+            wasSignedIn.current = false;
         }
-    }, [isSignedIn, user, syncUser])
+    }, [isSignedIn, user, syncUser, status]);
 
     return null;
 }
 
-export default AuthSync
+export default AuthSync;
