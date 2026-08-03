@@ -36,7 +36,7 @@ api.interceptors.response.use((response) => response, (error) => {
 })
 
 export const useApi = () => {
-    const { getToken } = useAuth();
+    const { getToken } = useAuth(); // from expo-clerk
 
     const apiWithAuth = useCallback(async<T>(config: Parameters<typeof api.request>[0]) => {
         const token = await getToken();
