@@ -10,7 +10,7 @@ import { Chat } from '@/types';
 
 const ChatTab = () => {
     const router = useRouter();
-    const { data: chats, isLoading, error } = useChats();
+    const { data: chats, isLoading, error, refetch } = useChats();
 
     if (isLoading) {
         return (
@@ -23,7 +23,15 @@ const ChatTab = () => {
     if (error) {
         return (
             <SafeAreaView className="flex-1 bg-surface items-center justify-center">
-                <Text className="text-red-500">Failed to load chats.</Text>
+                <View className="flex-col items-center justify-center bg-[#0D0D0F] px-6 py-8 rounded-3xl shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+                    <Text className="text-red-500 text-xl">Failed to load chats.</Text>
+                    <Pressable
+                        onPress={() => refetch()}
+                        className="mt-4 px-4 py-2 bg-primary/90 rounded-lg"
+                        >
+                        <Text className="text-foreground">Retry</Text>
+                    </Pressable>
+                </View>
             </SafeAreaView>
         );
     }
@@ -81,8 +89,8 @@ function Header() {
                 <Text className="text-2xl font-bold text-foreground">Chats</Text>
                 <Pressable
                     className="size-10 bg-primary rounded-full items-center justify-center"
-                    // todo: update this to navigate to the new chat screen when implemented
-                    // onPress={() => router.push("/new-chat")}
+                // todo: update this to navigate to the new chat screen when implemented
+                // onPress={() => router.push("/new-chat")}
                 >
                     <Ionicons name="create-outline" size={20} color="#0D0D0F" />
                 </Pressable>

@@ -52,7 +52,8 @@
           "project": "hillo",
           "organization": "my-team-xk"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,
