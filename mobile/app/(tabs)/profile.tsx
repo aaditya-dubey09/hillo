@@ -1,72 +1,234 @@
-import { Pressable, ScrollView, View, Text } from 'react-native'
-import React from 'react'
+import { EditProfileModal } from '@/components/profile/EditProfileModal';
+import { MenuItem, MenuItemRow } from '@/components/profile/MenuItemRow';
 import { useAuth, useUser } from '@clerk/expo';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from "expo-image";
+import * as ImagePicker from 'expo-image-picker';
+import React, { useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Pressable,
+    ScrollView,
+    Text,
+    View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const MENU_SECTIONS = [
+interface MenuSection {
+    title: string;
+    items: MenuItem[];
+}
+
+const MENU_SECTIONS: MenuSection[] = [
     {
         title: "Account",
         items: [
-            { icon: "person-outline", label: "Edit Profile", color: "#F4A261" },
-            { icon: "shield-checkmark-outline", label: "Privacy & Security", color: "#10B981" },
-            { icon: "notifications-outline", label: "Notifications", value: "On", color: "#8B5CF6" },
+            { icon: "person-outline", label: "Edit Profile", color: "#F4A261", actionKey: "edit_profile" },
+            { icon: "shield-checkmark-outline", label: "Privacy & Security", color: "#10B981", actionKey: "privacy_security", isExternal: true },
+            { icon: "notifications-outline", label: "Notifications", value: "On", color: "#8B5CF6", disabled: true },
         ],
     },
     {
         title: "Preferences",
         items: [
-            { icon: "moon-outline", label: "Dark Mode", value: "On", color: "#6366F1" },
-            { icon: "language-outline", label: "Language", value: "English", color: "#EC4899" },
-            { icon: "cloud-outline", label: "Data & Storage", value: "1.2 GB", color: "#14B8A6" },
+            { icon: "moon-outline", label: "Dark Mode", value: "On", color: "#6366F1", disabled: true },
+            { icon: "language-outline", label: "Language", value: "English", color: "#EC4899", disabled: true },
+            { icon: "cloud-outline", label: "Data & Storage", value: "1.2 GB", color: "#14B8A6", disabled: true },
         ],
     },
     {
         title: "Support",
         items: [
-            { icon: "help-circle-outline", label: "Help Center", color: "#F59E0B" },
-            { icon: "chatbubble-outline", label: "Contact Us", color: "#3B82F6" },
-            { icon: "star-outline", label: "Rate the App", color: "#F4A261" },
+            { icon: "help-circle-outline", label: "Help Center", color: "#F59E0B", actionKey: "help_center", isExternal: true },
+            { icon: "chatbubble-outline", label: "Contact Us", color: "#3B82F6", actionKey: "contact_us", isExternal: true },
+            { icon: "star-outline", label: "Rate the App", color: "#F4A261", actionKey: "rate_app", isExternal: true },
         ],
     },
 ];
 
 const ProfileTab = () => {
-    const { signOut } = useAuth()
-    const queryClient = useQueryClient();
     const { user } = useUser();
+    const { signOut } = useAuth();
+    const queryClient = useQueryClient();
 
-    // todo: Handle sign - out failures before relying on cache cleanup. handleSignOut returns a Promise that is not passed through the Pressable onPress; any signOut() rejection stops before queryClient.clear(), so the shared cache remains and the sign - out failure is not surfaced.Catch sign - out failures explicitly, and only call queryClient.clear() when sign - out state is handled consistently with whether local sign - out can complete before network rejection.
+    // UI States
+    const [isSigningOut, setIsSigningOut] = useState(false);
+    const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+
+    // Modal States
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+    // Edit Avatar Handler
+    const handleEditAvatar = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Permission Required", "Permission to access media library is required to update avatar.");
+                return;
+            }
+
+            const pickerResult = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+                base64: true,
+            });
+
+            if (pickerResult.canceled || !pickerResult.assets[0]?.base64) {
+                return;
+            }
+
+            setIsUpdatingAvatar(true);
+            const asset = pickerResult.assets[0];
+            const base64Image = `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`;
+
+            // Upload directly to Clerk
+            await user?.setProfileImage({ file: base64Image });
+            Alert.alert("Success", "Profile avatar updated successfully!");
+        } catch (error) {
+            Sentry.captureException(error);
+            Alert.alert("Update Failed", "Could not update profile photo. Please try again.");
+        } finally {
+            setIsUpdatingAvatar(false);
+        }
+    };
+
+    // Open Edit Modal with latest User state
+    const handleOpenEditModal = () => {
+        setFirstName(user?.firstName ?? '');
+        setLastName(user?.lastName ?? '');
+        setIsEditModalOpen(true);
+    };
+
+    // Name Update Modal Handler
+    const handleSaveProfile = async () => {
+        if (!firstName.trim()) {
+            Alert.alert("Validation Error", "First name cannot be empty.");
+            return;
+        }
+
+        setIsSavingProfile(true);
+        try {
+            await user?.update({
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+            });
+            setIsEditModalOpen(false);
+            Alert.alert("Success", "Profile updated successfully!");
+        } catch (error) {
+            Sentry.captureException(error);
+            Alert.alert("Update Failed", "Failed to update profile information.");
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    // External Actions
+    const handleOpenLink = async (url: string) => {
+        try {
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+                await Linking.openURL(url);
+            } else {
+                Alert.alert("Error", `Cannot open link: ${url}`);
+            }
+        } catch (error) {
+            Sentry.captureException(error);
+        }
+    };
+
+    const handleMenuItemPress = (actionKey?: string) => {
+        switch (actionKey) {
+            case "edit_profile":
+                handleOpenEditModal();
+                break;
+            case "privacy_security":
+                handleOpenLink("https://hillo-t16j.onrender.com/privacy");
+                break;
+            case "help_center":
+                handleOpenLink("https://hillo-t16j.onrender.com/help");
+                break;
+            case "contact_us":
+                handleOpenLink("mailto:aadityadubey219@gmail.com");
+                break;
+            case "rate_app":
+                handleOpenLink("https://play.google.com/store/apps/details?id=com.hillo.app");
+                break;
+            default:
+                break;
+        }
+    };
+
+    // Sign Out Confirmation & Handler
     const handleSignOut = async () => {
-        await signOut();
-        queryClient.clear(); // Flushes all user data from memory cache
+        if (isSigningOut) return;
+        Alert.alert(
+            "Sign Out",
+            "Are you sure you want to sign out?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Sign Out",
+                    onPress: handleConfirmSignOut,
+                    style: "destructive",
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
+    const handleConfirmSignOut = async () => {
+        setIsSigningOut(true);
+        try {
+            await signOut();
+            queryClient.clear(); // Flushes all user data from memory cache
+        } catch (error) {
+            Sentry.captureException(error);
+            Alert.alert("Sign Out Failed", "Unable to sign out. Please try again.");
+        } finally {
+            setIsSigningOut(false);
+        }
     };
 
     return (
         <SafeAreaView className="flex-1 bg-surface-dark px-4">
             <ScrollView
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: 30 }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Header */}
                 <View className="relative">
                     <View className="items-center mt-10">
                         <View className="relative">
-                            <View className="rounded-full border-2 border-primary">
+                            <View className="rounded-full border-2 border-primary overflow-hidden">
                                 <Image
                                     source={user?.imageUrl}
                                     style={{ width: 100, height: 100, borderRadius: 999 }}
                                 />
+                                {isUpdatingAvatar && (
+                                    <View className="absolute inset-0 bg-black/50 items-center justify-center">
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    </View>
+                                )}
                             </View>
 
-                            <Pressable className="absolute bottom-1 right-1 w-8 h-8 bg-primary rounded-full items-center justify-center border-2 border-surface-dark">
-                                <Ionicons
-                                    name="camera"
-                                    size={16}
-                                    color="#0D0D0F"
-                                />
+                            <Pressable 
+                                className="absolute bottom-1 right-1 w-8 h-8 bg-primary rounded-full items-center justify-center border-2 border-surface-dark active:opacity-80" 
+                                onPress={handleEditAvatar}
+                                disabled={isUpdatingAvatar}
+                            >
+                                <Ionicons name="camera" size={16} color="#0D0D0F" />
                             </Pressable>
                         </View>
 
@@ -75,7 +237,7 @@ const ProfileTab = () => {
                             {user?.firstName} {user?.lastName}
                         </Text>
                         <Text className="text-muted-foreground mt-1">
-                            {user?.emailAddresses[0]?.emailAddress}
+                            {user?.primaryEmailAddress?.emailAddress ?? "No email available"}
                         </Text>
 
                         <View className="flex-row items-center mt-3 bg-green-500/20 px-3 py-1.5 rounded-full">
@@ -87,29 +249,18 @@ const ProfileTab = () => {
 
                 {/* Menu */}
                 {MENU_SECTIONS.map((section) => (
-                    <View key={section.title} className="mt-6 mx-4">
+                    <View key={section.title} className="mt-6">
                         <Text className="text-subtle-foreground text-xs font-semibold uppercase tracking-wider mb-2 ml-1">
                             {section.title}
                         </Text>
                         <View className="bg-surface-card rounded-2xl overflow-hidden">
                             {section.items.map((item, index) => (
-                                <Pressable
+                                <MenuItemRow
                                     key={item.label}
-                                    className={`flex-row items-center px-4 py-3.5 active:bg-surface-light ${index < section.items.length - 1 ? "border-b border-surface-light" : ""
-                                        }`}
-                                >
-                                    <View
-                                        className="w-9 h-9 rounded-xl items-center justify-center"
-                                        style={{ backgroundColor: `${item.color}20` }}
-                                    >
-                                        <Ionicons name={item.icon as any} size={20} color={item.color} />
-                                    </View>
-                                    <Text className="flex-1 ml-3 text-foreground font-medium">{item.label}</Text>
-                                    {item.value && (
-                                        <Text className="text-subtle-foreground text-sm mr-1">{item.value}</Text>
-                                    )}
-                                    <Ionicons name="chevron-forward" size={18} color="#6B6B70" />
-                                </Pressable>
+                                    item={item}
+                                    isLast={index === section.items.length - 1}
+                                    onPress={handleMenuItemPress}
+                                />
                             ))}
                         </View>
                     </View>
@@ -117,17 +268,29 @@ const ProfileTab = () => {
 
                 {/* Sign-out btn */}
                 <Pressable
-                    className="mx-5 mt-8 bg-red-500/10 rounded-2xl py-4 items-center active:opacity-70 border border-red-500/20"
+                    className="mt-8 bg-red-500/10 rounded-2xl py-4 items-center active:opacity-70 border border-red-500/20"
                     onPress={() => handleSignOut()}
+                    disabled={isSigningOut}
                 >
                     <View className="flex-row items-center">
                         <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                        <Text className="ml-2 text-red-500 font-semibold">Log Out</Text>
+                        <Text className="ml-2 text-red-500 font-semibold">{isSigningOut ? "Logging out..." : "Log Out"}</Text>
                     </View>
                 </Pressable>
             </ScrollView>
+
+            <EditProfileModal
+                visible={isEditModalOpen}
+                firstName={firstName}
+                lastName={lastName}
+                isSaving={isSavingProfile}
+                onChangeFirstName={setFirstName}
+                onChangeLastName={setLastName}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleSaveProfile}
+            />
         </SafeAreaView>
     );
 };
 
-export default ProfileTab
+export default ProfileTab;

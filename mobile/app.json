@@ -48,12 +48,10 @@
       [
         "@sentry/react-native/expo",
         {
-          "url": "https://sentry.io/",
-          "project": "hillo",
-          "organization": "my-team-xk"
+          "organization": "your-org",
+          "project": "your-project"
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

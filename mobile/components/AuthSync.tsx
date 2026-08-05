@@ -1,12 +1,12 @@
 import { useAuthCallback } from "@/hooks/useAuth";
-import { useEffect, useRef } from "react";
 import { useAuth, useUser } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
+import { useEffect, useRef } from "react";
 
 const AuthSync = () => {
     const { isSignedIn } = useAuth();
     const { user } = useUser();
-    const { mutate: syncUser, status } = useAuthCallback();
+    const { mutate: syncUser, status, reset } = useAuthCallback();
     const wasSignedIn = useRef(false); // ref to know if we need to clear state on sign-out
 
     useEffect(() => {
@@ -22,9 +22,9 @@ const AuthSync = () => {
                 },
                 onError: (error) => {
                     console.error("Error syncing user:", error);
-                    Sentry.captureException("Failed to sync user with backend", {
+                    Sentry.captureException(error, {
                         level: "error",
-                        tags: { userId: user.id },
+                        tags: { userId: user.id ?? "unknown" },
                     });
                 },
             });
@@ -32,9 +32,10 @@ const AuthSync = () => {
 
         // Sign out reset
         if (!isSignedIn && wasSignedIn.current) {
+            reset();
             wasSignedIn.current = false;
         }
-    }, [isSignedIn, user, syncUser, status]);
+    }, [isSignedIn, user, syncUser, status, reset]);
 
     return null;
 }

@@ -10,7 +10,7 @@ import { Chat } from '@/types';
 
 const ChatTab = () => {
     const router = useRouter();
-    const { data: chats, isLoading, error, refetch } = useChats();
+    const { data: chats, isLoading, error, refetch, isRefetching } = useChats();
 
     if (isLoading) {
         return (
@@ -27,9 +27,16 @@ const ChatTab = () => {
                     <Text className="text-red-500 text-xl">Failed to load chats.</Text>
                     <Pressable
                         onPress={() => refetch()}
-                        className="mt-4 px-4 py-2 bg-primary/90 rounded-lg"
-                        >
-                        <Text className="text-foreground">Retry</Text>
+                        disabled={isRefetching}
+                        // todo: fix this styling
+                        style={({ pressed }) => [
+                            "mt-4 px-4 py-2 bg-primary/90 rounded-lg",
+                            (pressed || isRefetching) && "bg-primary/70",
+                        ]}
+                    >
+                        <Text style={{ color: "#0D0D0F", fontWeight: "bold" }}>
+                            {isRefetching ? 'Retrying...' : 'Retry'}
+                        </Text>
                     </Pressable>
                 </View>
             </SafeAreaView>

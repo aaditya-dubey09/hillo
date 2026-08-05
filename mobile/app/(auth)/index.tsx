@@ -52,10 +52,13 @@ const AuthScreen = () => {
                     duration={4500}
                 />
 
+                {/* In newer sdk blur view needs a blurTarget ref pointing to target container */}
                 <BlurView
-                    intensity={70}
+                    intensity={90}
                     tint="dark"
                     style={{ position: "absolute", width: "100%", height: "100%" }}
+                    experimentalBlurMethod="dimezisBlurView" // renamed to blurMethod in sdk 55
+                    blurReductionFactor={40}
                 />
             </View>
             <SafeAreaView className="flex-1">
