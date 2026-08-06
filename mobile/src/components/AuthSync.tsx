@@ -1,4 +1,4 @@
-import { useAuthCallback } from "@/hooks/useAuth";
+import { useAuthCallback } from "@/src/hooks/useAuth";
 import { useAuth, useUser } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
 import { useEffect, useRef } from "react";

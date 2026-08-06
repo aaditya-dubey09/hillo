@@ -3,9 +3,9 @@ import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
-import useAuthSocial from '@/hooks/useSocialAuth';
+import useAuthSocial from '@/src/hooks/useSocialAuth';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AnimatedOrb } from '@/components/AnimatedOrb';
+import { AnimatedOrb } from '@/src/components/AnimatedOrb';
 import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get("window");

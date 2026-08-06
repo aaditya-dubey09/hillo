@@ -1,22 +1,7 @@
+import type { MenuItemRowProps } from '@/src/types/profile';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-
-export interface MenuItem {
-    icon: string;
-    label: string;
-    color: string;
-    value?: string;
-    actionKey?: string;
-    disabled?: boolean;
-    isExternal?: boolean; // Controls icon display for external links
-}
-
-interface MenuItemRowProps {
-    item: MenuItem;
-    isLast: boolean;
-    onPress: (actionKey?: string) => void;
-}
 
 export const MenuItemRow = ({ item, isLast, onPress }: MenuItemRowProps) => {
     const isInteractive = !item.disabled && Boolean(item.actionKey);
@@ -39,7 +24,7 @@ export const MenuItemRow = ({ item, isLast, onPress }: MenuItemRowProps) => {
             {item.value && (
                 <Text className="text-subtle-foreground text-sm mr-1">{item.value}</Text>
             )}
-
+            
             {isInteractive && (
                 <Ionicons
                     name={item.isExternal ? "open-outline" : "chevron-forward"}

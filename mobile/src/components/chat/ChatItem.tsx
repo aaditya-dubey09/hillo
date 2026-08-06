@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import React from 'react';
-import { Chat } from '@/types';
+import { Chat } from '@/src/types';
 import { Image } from 'expo-image';
 import { formatDistanceToNow } from 'date-fns';
 

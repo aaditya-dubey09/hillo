@@ -1,5 +1,5 @@
-import { useApi } from "@/lib/axios";
-import type { Chat } from "@/types";
+import { useApi } from "@/src/lib/axios";
+import type { Chat } from "@/src/types";
 import { useAuth } from "@clerk/expo";
 import { useQuery } from "@tanstack/react-query";
 

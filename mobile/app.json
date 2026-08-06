@@ -48,8 +48,8 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "your-org",
-          "project": "your-project"
+          "organization": "my-team-xk",
+          "project": "hillo"
         }
       ]
     ],
