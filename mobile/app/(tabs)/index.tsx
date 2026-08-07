@@ -1,16 +1,16 @@
 import { useRouter } from 'expo-router';
-import { useChats } from '@/hooks/useChats';
+import { useChats } from '@/src/hooks/useChats';
 import React from 'react';
 import { ActivityIndicator, View, Text, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import ChatItem from '@/components/ChatItem';
-import EmptyUI from '@/components/EmptyUI';
-import { Chat } from '@/types';
+import ChatItem from '@/src/components/chat/ChatItem';
+import EmptyUI from '@/src/components/common/EmptyUI';
+import { Chat } from '@/src/types';
 
 const ChatTab = () => {
     const router = useRouter();
-    const { data: chats, isLoading, error } = useChats();
+    const { data: chats, isLoading, error, refetch, isRefetching } = useChats();
 
     if (isLoading) {
         return (
@@ -23,7 +23,18 @@ const ChatTab = () => {
     if (error) {
         return (
             <SafeAreaView className="flex-1 bg-surface items-center justify-center">
-                <Text className="text-red-500">Failed to load chats.</Text>
+                <View className="flex-col items-center justify-center bg-[#0D0D0F] px-6 py-8 rounded-3xl shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+                    <Text className="text-red-500 text-xl">Failed to load chats.</Text>
+                    <Pressable
+                        onPress={() => refetch()}
+                        disabled={isRefetching}
+                        className={`mt-4 px-4 py-2 rounded-lg active:bg-primary/70 ${isRefetching ? 'bg-primary/70' : 'bg-primary/90'}`}
+                    >
+                        <Text style={{ color: "#0D0D0F", fontWeight: "bold" }}>
+                            {isRefetching ? 'Retrying...' : 'Retry'}
+                        </Text>
+                    </Pressable>
+                </View>
             </SafeAreaView>
         );
     }
@@ -81,8 +92,8 @@ function Header() {
                 <Text className="text-2xl font-bold text-foreground">Chats</Text>
                 <Pressable
                     className="size-10 bg-primary rounded-full items-center justify-center"
-                    // todo: update this to navigate to the new chat screen when implemented
-                    // onPress={() => router.push("/new-chat")}
+                // todo: update this to navigate to the new chat screen when implemented
+                // onPress={() => router.push("/new-chat")}
                 >
                     <Ionicons name="create-outline" size={20} color="#0D0D0F" />
                 </Pressable>

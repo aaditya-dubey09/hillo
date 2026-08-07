@@ -3,7 +3,10 @@ import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
-import useAuthSocial from '@/hooks/useSocialAuth';
+import useAuthSocial from '@/src/hooks/useSocialAuth';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AnimatedOrb } from '@/src/components/AnimatedOrb';
+import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get("window");
 
@@ -12,7 +15,52 @@ const AuthScreen = () => {
     const isLoading = loadingStrategy !== null;
     return (
         <View className="flex-1 bg-surface-dark">
-            <View className="absolute inset-0 overflow-hidden"></View>
+            <View className="absolute inset-0 overflow-hidden">
+                <LinearGradient
+                    colors={['#0D0D0F', '#1A1A2E', '#16213E', '#0D0D0F']}
+                    style={{ position: 'absolute', width: "100%", height: "100%" }}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                />
+
+                <AnimatedOrb
+                    colors={["#F4A261", "#E76F51"]}
+                    size={300}
+                    initialX={-80}
+                    initialY={height * 0.1}
+                    duration={4000}
+                />
+                <AnimatedOrb
+                    colors={["#E76F51", "#F4A261"]}
+                    size={250}
+                    initialX={width - 100}
+                    initialY={height * 0.3}
+                    duration={5000}
+                />
+                <AnimatedOrb
+                    colors={["#FFD7BA", "#F4A261"]}
+                    size={200}
+                    initialX={width * 0.3}
+                    initialY={height * 0.6}
+                    duration={3500}
+                />
+                <AnimatedOrb
+                    colors={["#F4B183", "#E76F51"]}
+                    size={180}
+                    initialX={-50}
+                    initialY={height * 0.75}
+                    duration={4500}
+                />
+
+                {/* In newer sdk blur view needs a blurTarget ref pointing to target container */}
+                <BlurView
+                    intensity={90}
+                    tint="dark"
+                    style={{ position: "absolute", width: "100%", height: "100%" }}
+                    experimentalBlurMethod="dimezisBlurView" // renamed to blurMethod in sdk 55
+                    blurReductionFactor={40}
+                />
+            </View>
             <SafeAreaView className="flex-1">
                 {/* Top Section - logo */}
                 <View className="items-center pt-10">

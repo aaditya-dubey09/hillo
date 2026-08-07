@@ -11,6 +11,9 @@ const TabsLayout = () => {
     return (
         <Tabs
             screenOptions={{
+                tabBarActiveTintColor: "#F4A261",
+                tabBarInactiveTintColor: "#6B6B70",
+                tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: "#0D0D0F",
@@ -32,9 +35,6 @@ const TabsLayout = () => {
                             color={color}
                         />
                     ),
-                    tabBarActiveTintColor: "#F4A261",
-                    tabBarInactiveTintColor: "#6B6B70",
-                    tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
                 }}
             />
             <Tabs.Screen

@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 // @ts-ignore - side-effect CSS import for Expo web/native styling
-import AuthSync from "@/components/AuthSync";
+import AuthSync from "@/src/components/AuthSync";
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -26,7 +26,7 @@ Sentry.init({
   replaysSessionSampleRate: 0.0,
   replaysOnErrorSampleRate: __DEV__ ? 0.0 : 1,
   integrations: [
-    Sentry.mobileReplayIntegration(), 
+    Sentry.mobileReplayIntegration(),
     Sentry.reactNativeTracingIntegration({
       traceFetch: true,
       traceXHR: true,
