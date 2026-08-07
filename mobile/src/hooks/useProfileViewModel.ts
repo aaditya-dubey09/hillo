@@ -7,7 +7,7 @@ import { Alert, Linking } from 'react-native';
 import type { ModalStep } from '../types/profile';
 
 export const useProfileViewModel = () => {
-    const { user } = useUser();
+    const { user, isLoaded } = useUser();
     const { signOut } = useAuth();
     const queryClient = useQueryClient();
 
@@ -130,6 +130,22 @@ export const useProfileViewModel = () => {
         }
     };
 
+    const handleCloseModal = async () => {
+        if (pendingEmailObj && modalStep === 'verify_email') {
+            try {
+                // Deleting unverified email address from Clerk account
+                await pendingEmailObj.destroy();
+            } catch (err) {
+                console.warn('Failed to cleanup unverified email:', err);
+            }
+        }
+
+        setPendingEmailObj(null);
+        setModalStep('edit');
+        setVerificationCode('');
+        setIsEditModalOpen(false);
+    };
+
     const handleVerifyEmailCode = async () => {
         if (!user) {
             Alert.alert("Error", "User session not found, please log in again.");
@@ -211,6 +227,7 @@ export const useProfileViewModel = () => {
     };
 
     return {
+        isLoaded,
         user,
         isSigningOut,
         isUpdatingAvatar,
@@ -228,6 +245,7 @@ export const useProfileViewModel = () => {
         setIsEditModalOpen,
         handleEditAvatar,
         handleSaveProfile,
+        handleCloseModal,
         handleVerifyEmailCode,
         handleMenuItemPress,
         handleSignOut,

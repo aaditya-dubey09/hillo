@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EditProfileModal } from '@/src/components/profile/EditProfileModal';
@@ -39,6 +39,7 @@ const MENU_SECTIONS: MenuSection[] = [
 
 const ProfileTab = () => {
     const {
+        isLoaded,
         user,
         isSigningOut,
         isUpdatingAvatar,
@@ -53,13 +54,21 @@ const ProfileTab = () => {
         setLastName,
         setEmail,
         setVerificationCode,
-        setIsEditModalOpen,
         handleEditAvatar,
         handleSaveProfile,
+        handleCloseModal,
         handleVerifyEmailCode,
         handleMenuItemPress,
         handleSignOut,
     } = useProfileViewModel();
+
+    if (!isLoaded) {
+        return <ActivityIndicator size="large" color="#F4A261"/>;
+    };
+
+    if (!user) {
+        return <Text className="text-foreground text-center text-xl">User not logged in.</Text>;
+    };
 
     if (!user) {
         return (
@@ -134,7 +143,7 @@ const ProfileTab = () => {
                 onChangeLastName={setLastName}
                 onChangeEmail={setEmail}
                 onChangeVerificationCode={setVerificationCode}
-                onClose={() => setIsEditModalOpen(false)}
+                onClose={handleCloseModal}
                 onSave={handleSaveProfile}
                 onVerifyCode={handleVerifyEmailCode}
             />

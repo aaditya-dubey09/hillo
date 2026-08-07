@@ -21,6 +21,8 @@ export const ProfileHeader = ({
                     <View className="rounded-full border-2 border-primary overflow-hidden">
                         <Pressable
                             className="rounded-full border-2 border-primary overflow-hidden active:opacity-90"
+                            accessibilityRole="button"
+                            accessibilityLabel="View profile photo in fullscreen"
                             onPress={() => setIsImageFullscreen(true)}
                         >
                             <Image
@@ -38,6 +40,8 @@ export const ProfileHeader = ({
 
                     <Pressable
                         className="absolute bottom-1 right-1 w-8 h-8 bg-primary rounded-full items-center justify-center border-2 border-surface-dark active:opacity-80"
+                        accessibilityRole="button"
+                        accessibilityLabel="Edit profile photo"
                         onPress={onEditAvatar}
                         disabled={isUpdatingAvatar}
                     >

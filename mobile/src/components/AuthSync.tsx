@@ -1,6 +1,7 @@
 import { useAuthCallback } from "@/src/hooks/useAuth";
 import { useAuth, useUser } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
+import { isAxiosError } from "axios";
 import { useEffect, useRef } from "react";
 
 const AuthSync = () => {
@@ -22,9 +23,22 @@ const AuthSync = () => {
                 },
                 onError: (error) => {
                     console.error("Error syncing user:", error);
-                    Sentry.captureException(error, {
+                    
+                    let errorMessage = "User sync failed";
+                    let statusCode = "unknown";
+
+                    if (isAxiosError(error)) {
+                        errorMessage= error.response?.data?.message || error.message || "User sync failed";
+                        statusCode = error.response?.status?.toString() ?? "unknown";
+                    } else if (error instanceof Error) {
+                        errorMessage = error.message;
+                    }
+                    Sentry.captureException(new Error(errorMessage), {
                         level: "error",
-                        tags: { userId: user.id ?? "unknown" },
+                        tags: { 
+                            userId: user.id ?? "unknown",
+                            status: statusCode,
+                        },
                     });
                 },
             });
