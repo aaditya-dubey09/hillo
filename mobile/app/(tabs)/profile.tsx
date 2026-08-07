@@ -67,10 +67,6 @@ const ProfileTab = () => {
     };
 
     if (!user) {
-        return <Text className="text-foreground text-center text-xl">User not logged in.</Text>;
-    };
-
-    if (!user) {
         return (
             <SafeAreaView className="flex-1 bg-surface-dark px-4 justify-center items-center">
                 <EmptyUI
