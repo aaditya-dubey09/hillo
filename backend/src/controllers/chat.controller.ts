@@ -1,34 +1,32 @@
-import type { AuthRequest } from '../middleware/auth';
-import type { Response, NextFunction } from 'express';
-import { User } from '../models/user';
-import { Chat } from '../models/chat';
-import { AppError } from '../utils/AppError';
-import { Types } from 'mongoose';
+import type { NextFunction, Response } from "express";
+import type { AuthRequest } from "../middleware/auth";
+import { Chat } from "../models/chat";
+import { Types } from "mongoose";
 
 export async function getChats(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const userId = req.userId;
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
 
         const chats = await Chat.find({ participants: userId })
-            .populate('participants', 'name email avatar')
+            .populate("participants", "name email avatar")
             .populate("lastMessage")
             .sort({ lastMessageAt: -1 });
 
-        const formattedChats = chats.map(chat => {
-            const otherParticipant = chat.participants.find(p => p._id.toString() !== userId);
+        const formattedChats = chats.map((chat) => {
+            const otherParticipant = chat.participants.find(
+                (p) => p._id.toString() !== userId
+            );
+
             return {
                 _id: chat._id,
-                participants: otherParticipant ?? null,
+                participant: otherParticipant ?? null,
                 lastMessage: chat.lastMessage,
                 lastMessageAt: chat.lastMessageAt,
                 createdAt: chat.createdAt,
             };
         });
 
-        res.status(200).json(formattedChats);
+        res.json(formattedChats);
     } catch (error) {
         next(error);
     }
@@ -39,50 +37,48 @@ export async function getOrCreateChat(req: AuthRequest, res: Response, next: Nex
         const userId = req.userId;
         const { participantId } = req.params;
 
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
-
         if (!participantId) {
-            return next(new AppError("Participant ID is required", 400));
+            res.status(400).json({ message: "Participant ID is required" });
+            return;
         }
 
-        if (typeof participantId !== 'string' || !Types.ObjectId.isValid(participantId)) {
-            return next(new AppError("Invalid participant ID", 400));
+        if (typeof participantId !== "string") {
+            res.status(400).json({ message: "Participant ID must be a string" });
+            return;
+        }
+
+        if (!Types.ObjectId.isValid(participantId)) {
+            res.status(400).json({ message: "Invalid participant ID" });
+            return;
         }
 
         if (userId === participantId) {
-            return next(new AppError("Cannot create chat with yourself", 400));
+            res.status(400).json({ message: "Cannot create chat with yourself" });
+            return;
         }
 
-        const participantExists = await User.exists({ _id: participantId });
-        if (!participantExists) {
-            return next(new AppError("Participant not found", 404));
-        }
-
+        // check if chat already exists
         let chat = await Chat.findOne({
-            participants: { $all: [userId, participantId] }
+            participants: { $all: [userId, participantId] },
         })
-            .populate('participants', 'name email avatar')
+            .populate("participants", "name email avatar")
             .populate("lastMessage");
-        
+
         if (!chat) {
-            const newChat = new Chat({
-                participants: [userId, participantId],
-            });
+            const newChat = new Chat({ participants: [userId, participantId] });
             await newChat.save();
-            chat = await newChat.populate('participants', 'name email avatar');
+            chat = await newChat.populate("participants", "name email avatar");
         }
 
-        const otherParticipant = chat.participants.find(p => p._id.toString() !== userId);
+        const otherParticipant = chat.participants.find((p: any) => p._id.toString() !== userId);
 
-        res.status(200).json({
+        res.json({
             _id: chat._id,
-            participants: otherParticipant ?? null,
+            participant: otherParticipant ?? null,
             lastMessage: chat.lastMessage,
             lastMessageAt: chat.lastMessageAt,
             createdAt: chat.createdAt,
-        })
+        });
     } catch (error) {
         next(error);
     }
