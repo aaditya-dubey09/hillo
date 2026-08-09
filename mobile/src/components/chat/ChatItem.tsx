@@ -10,6 +10,20 @@ const ChatItem = ({ chat, onPress }: { chat: Chat, onPress: () => void }) => {
     const isTyping = false;
     const hasUnread = false;
 
+    console.log("Participant:", participant);
+
+    if (!participant) {
+        return (
+            <View className="flex-row items-center py-3">
+                <View className="w-14 h-14 rounded-full bg-surface-card" />
+                <View className="flex-1 ml-4">
+                    <Text className="text-foreground font-medium">Unknown user</Text>
+                    <Text className="text-subtle-foreground text-sm">No messages yet</Text>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <Pressable
             className="flex-row items-center py-3 active:opacity-70"
