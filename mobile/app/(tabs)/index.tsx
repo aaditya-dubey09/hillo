@@ -10,7 +10,7 @@ import { Chat } from '@/src/types';
 
 const ChatTab = () => {
     const router = useRouter();
-    const { data: chats, isLoading, error, refetch, isRefetching } = useChats();
+    const { data: chats = [], isLoading, error, refetch, isRefetching } = useChats();
 
     if (isLoading) {
         return (
@@ -39,8 +39,11 @@ const ChatTab = () => {
         );
     }
 
-    // todo: have to test this
     const handleChatPress = (chat: Chat) => {
+        if (!chat.participant) {
+            return;
+        }
+
         router.push({
             pathname: "/chat/[id]",
             params: {
@@ -66,16 +69,17 @@ const ChatTab = () => {
                     paddingBottom: 24,
                 }}
                 ListHeaderComponent={<Header />}
-                ListEmptyComponent={<EmptyUI
-                    title="No chats yet"
-                    subtitle="Start a conversation!"
-                    iconName="chatbubbles-outline"
-                    iconColor="#6B6B70"
-                    iconSize={64}
-                    buttonLabel="New Chat"
-                    // todo: update this to navigate to the new chat screen when implemented
-                    onPressButton={() => console.log("pressed")}
-                />}
+                ListEmptyComponent={
+                    <EmptyUI
+                        title="No chats yet"
+                        subtitle="Start a conversation!"
+                        iconName="chatbubbles-outline"
+                        iconColor="#6B6B70"
+                        iconSize={64}
+                        buttonLabel="New Chat"
+                        onPressButton={() => router.push("/new-chat")}
+                    />
+                }
             />
         </SafeAreaView>
     );
@@ -92,12 +96,11 @@ function Header() {
                 <Text className="text-2xl font-bold text-foreground">Chats</Text>
                 <Pressable
                     className="size-10 bg-primary rounded-full items-center justify-center"
-                // todo: update this to navigate to the new chat screen when implemented
-                // onPress={() => router.push("/new-chat")}
+                    onPress={() => router.push("/new-chat")}
                 >
                     <Ionicons name="create-outline" size={20} color="#0D0D0F" />
                 </Pressable>
             </View>
         </View>
-    )
+    );
 }
