@@ -49,7 +49,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         onlineUsers.set(userId, userSockets);
 
         // send currently online user to new connected user
-        socket.emit("online-users", { userId: Array.from(onlineUsers.keys()) });
+        socket.emit("online-users", { userIds: Array.from(onlineUsers.keys()) });
 
         // notify all users about the new online user
         if (isFirstConnection) {
@@ -102,7 +102,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 }
 
                 const message = new Message({
-                    chatId: chatId,
+                    chat: chatId,
                     sender: userId,
                     text,
                 });

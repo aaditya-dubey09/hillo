@@ -27,7 +27,7 @@ export async function getMessages(req: AuthRequest, res: Response, next: NextFun
             return next(new AppError("Chat not found", 404));
         }
 
-        const messages = await Message.find({ chatId: chatId }).populate('sender', 'name email avatar').sort({ createdAt: 1 });
+        const messages = await Message.find({ chat: chatId }).populate('sender', 'name email avatar').sort({ createdAt: 1 });
 
         res.status(200).json(messages);
     } catch (error) {
