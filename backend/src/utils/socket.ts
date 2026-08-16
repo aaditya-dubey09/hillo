@@ -138,8 +138,28 @@ export const initializeSocket = (httpServer: HttpServer) => {
             }
         });
 
-        // TODO: handle typing indicator
-        socket.on("typing", async (data) => { })
+        socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
+            const typingPayload = {
+                userId,
+                chatId: data.chatId,
+                isTyping: data.isTyping
+            };
+            // emit to chat room (for users inside the chat)
+            socket.to(`chat: ${data.chatId}`).emit("typing", typingPayload);
+
+            // also emit to other participant's personal room (for chat list view)
+            try {
+                const chat = await Chat.findById(data.chatId);
+                if (chat) {
+                    const otherParticipantId = chat.participants.find((p: any) => p.toString() !== userId);
+                    if (otherParticipantId) {
+                        socket.to(`user: ${otherParticipantId}`).emit("typing", typingPayload);
+                    }
+                }
+            } catch (error) {
+                console.error("Error occurred while handling typing indicator:", error); // although it's not so critical, we can log it for debugging purposes
+            }
+        });
 
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
