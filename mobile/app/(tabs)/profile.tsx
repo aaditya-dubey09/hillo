@@ -68,7 +68,7 @@ const ProfileTab = () => {
 
     if (!user) {
         return (
-            <SafeAreaView className="flex-1 bg-surface-dark px-4 justify-center items-center">
+            <SafeAreaView className="flex-1 bg-surface-dark px-4 justify-center items-center" edges={["top", "bottom"]}>
                 <EmptyUI
                     title="User not found"
                     subtitle="Please try logging in again or refresh."
@@ -83,7 +83,7 @@ const ProfileTab = () => {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-surface-dark px-4">
+        <SafeAreaView className="flex-1 bg-surface-dark px-4" edges={["top", "bottom"]}>
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 <ProfileHeader
                     imageUrl={user?.imageUrl}

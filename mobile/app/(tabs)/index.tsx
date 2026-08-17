@@ -56,7 +56,7 @@ const ChatTab = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-surface">
+        <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
             <FlatList
                 data={chats}
                 keyExtractor={(item) => item._id}
@@ -91,9 +91,9 @@ function Header() {
     const router = useRouter();
 
     return (
-        <View className="px-5 pt-2 pb-4">
+        <View className="px-1 pt-2 pb-4">
             <View className="flex-row items-center justify-between">
-                <Text className="text-2xl font-bold text-foreground">Chats</Text>
+                <Text className="text-2xl font-bold text-primary font-serif tracking-wider uppercase">hillo</Text>
                 <Pressable
                     className="size-10 bg-primary rounded-full items-center justify-center"
                     onPress={() => router.push("/new-chat")}

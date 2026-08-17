@@ -1,13 +1,12 @@
-import { View, Text, Pressable } from 'react-native';
-import React from 'react';
-import { Chat } from '@/src/types';
-import { Image } from 'expo-image';
-import { formatDistanceToNow } from 'date-fns';
 import { useSocketStore } from '@/src/lib/socket';
+import { Chat } from '@/src/types';
+import { formatDistanceToNow } from 'date-fns';
+import { Image } from 'expo-image';
+import { Pressable, Text, View } from 'react-native';
 
 const ChatItem = ({ chat, onPress }: { chat: Chat, onPress: () => void }) => {
     const participant = chat.participant;
-    const {onlineUsers, typingUsers,unreadChats} = useSocketStore();
+    const { onlineUsers, typingUsers, unreadChats } = useSocketStore();
 
     // @ts-ignore - todo: remove/fix
     const isOnline = onlineUsers.has(participant._id);

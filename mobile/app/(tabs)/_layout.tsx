@@ -13,7 +13,8 @@ const TabsLayout = () => {
             screenOptions={{
                 tabBarActiveTintColor: "#F4A261",
                 tabBarInactiveTintColor: "#6B6B70",
-                tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+                tabBarShowLabel: false,
+                tabBarHideOnKeyboard: true,
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: "#0D0D0F",
@@ -27,7 +28,6 @@ const TabsLayout = () => {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: "Chats",
                     tabBarIcon: ({ color, focused, size }) => (
                         <Ionicons 
                             name={focused ? "chatbubbles" : "chatbubbles-outline"}
@@ -40,10 +40,9 @@ const TabsLayout = () => {
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: "Profile",
                     tabBarIcon: ({ color, focused, size }) => (
                         <Ionicons 
-                            name={focused ? "person" : "person-outline"}
+                            name={focused ? "person-circle" : "person-circle-outline"}
                             size={size}
                             color={color}
                         />

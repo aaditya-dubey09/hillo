@@ -27,7 +27,7 @@ Sentry.init({
   replaysSessionSampleRate: 0.0,
   replaysOnErrorSampleRate: __DEV__ ? 0.0 : 1,
   integrations: [
-    Sentry.mobileReplayIntegration(),
+    Sentry.mobileReplayIntegration(), // maskAllImages and maskAllText to unblock ui content in sentry replays
     Sentry.reactNativeTracingIntegration({
       traceFetch: true,
       traceXHR: true,
