@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from 'expo-status-bar';
 import "../global.css";
 import * as Sentry from '@sentry/react-native';
+import SocketConnection from "@/src/components/SocketConnection";
 
 Sentry.init({
   dsn: 'https://3ac12c41ecbe2e4452b1331350c0c39c@o4511842183872512.ingest.us.sentry.io/4511842195406848',
@@ -52,6 +53,7 @@ export default Sentry.wrap(function RootLayout() {
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <QueryClientProvider client={queryClient}>
           <AuthSync />
+          <SocketConnection />
           <StatusBar style="light" />
           <Stack screenOptions={{
             headerShown: false, contentStyle: {
