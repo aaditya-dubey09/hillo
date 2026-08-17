@@ -3,12 +3,15 @@ import { useAuth, useUser } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
 import { isAxiosError } from "axios";
 import { useEffect, useRef } from "react";
+import { useSocketStore } from "../lib/socket";
 
 const AuthSync = () => {
     const { isSignedIn } = useAuth();
     const { user } = useUser();
     const { mutate: syncUser, status, reset } = useAuthCallback();
     const wasSignedIn = useRef(false); // ref to know if we need to clear state on sign-out
+
+    const {} = useSocketStore();
 
     useEffect(() => {
         if (isSignedIn && user && status === "idle") {

@@ -1,12 +1,13 @@
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { View, Text, Pressable, TextInput, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native'
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useUsers } from '@/src/hooks/useUsers';
-import { useState } from 'react';
-import { useGetOrCreateChat } from '@/src/hooks/useChats';
-import { User } from '@/src/types';
 import UserItem from '@/src/components/UserItem';
+import { useGetOrCreateChat } from '@/src/hooks/useChats';
+import { useUsers } from '@/src/hooks/useUsers';
+import { User } from '@/src/types';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSocketStore } from '@/src/lib/socket';
 
 const NewChatScreen = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -14,6 +15,7 @@ const NewChatScreen = () => {
 
     const { data: allUsers, isLoading, isError, error, refetch } = useUsers();
     const { mutate: getOrCreateChat, isPending: isCreatingChat, isError: isChatError, error: chatError } = useGetOrCreateChat();
+    const { onlineUsers } = useSocketStore();
 
     // client-side filtering
     const users = allUsers?.filter((u) => {
@@ -128,7 +130,7 @@ const NewChatScreen = () => {
                                     <UserItem
                                         key={user._id}
                                         user={user}
-                                        isOnline={true}
+                                        isOnline={onlineUsers.has(user._id)}
                                         onPress={() => handleUserSelect(user)}
                                     />
                                 ))}

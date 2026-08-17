@@ -76,7 +76,6 @@ const ProfileTab = () => {
                     iconColor="#6B6B70"
                     iconSize={64}
                     buttonLabel="Retry / Go to Login"
-                    // todo: pass a refresh function or trigger sign-out to clear the broken session
                     onPressButton={handleSignOut}
                 />
             </SafeAreaView>
