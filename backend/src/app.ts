@@ -6,11 +6,22 @@ import messageRoutes from "./routes/message.route";
 import userRoutes from "./routes/user.route";
 import { clerkMiddleware } from '@clerk/express';
 import { errorHandler } from "./middleware/errorHandler";
+import cors from "cors";
 
 const app = express();
 
-app.use(express.json());
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:8081",
+    process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
 
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true,
+}));
+
+app.use(express.json());
 app.use(clerkMiddleware());
 
 app.get("/health", (req, res) => {
