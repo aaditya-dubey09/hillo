@@ -1,23 +1,33 @@
+import { useAuth } from "@clerk/react"
+import { Navigate, Route, Routes } from 'react-router'
 import './App.css'
-import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/react'
+import PageLoader from './components/PageLoader'
+import { useUserSync } from './hooks/useUserSync'
+import ChatPage from './pages/ChatPage'
+import HomePage from './pages/HomePage'
 
 function App() {
+  const { isLoaded, isSignedIn } = useAuth();
+  useUserSync();
+
+  if (!isLoaded) return <PageLoader />;
 
   return (
-    <>
-      <section>
-        <h1>Welcome to Hillo!</h1>
-
-        <Show when="signed-out">
-          <SignInButton oauthFlow='redirect' />
-          <SignUpButton oauthFlow='redirect' />
-        </Show>
-
-        <Show when="signed-in">
-          <UserButton />
-        </Show>
-      </section>
-    </>
+    <Routes>
+      <Route
+        path="/"
+        element={!isSignedIn ? <HomePage /> : <Navigate to={"/chat"} replace />}
+      />
+      <Route
+        path="/chat"
+        element={isSignedIn ? <ChatPage /> : <Navigate to={"/"} replace />}
+      />
+      {/* Fallback route for unmatched paths */}
+      <Route
+        path="*"
+        element={<Navigate to={isSignedIn ? "/chat" : "/"} replace />}
+      />
+    </Routes>
   )
 }
 
