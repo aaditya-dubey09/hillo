@@ -14,8 +14,19 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={!isSignedIn ? <HomePage /> : <Navigate to={"/chat"} />} />
-      <Route path="/chat" element={isSignedIn ? <ChatPage /> : <Navigate to={"/"} />} />
+      <Route
+        path="/"
+        element={!isSignedIn ? <HomePage /> : <Navigate to={"/chat"} replace />}
+      />
+      <Route
+        path="/chat"
+        element={isSignedIn ? <ChatPage /> : <Navigate to={"/"} replace />}
+      />
+      {/* Fallback route for unmatched paths */}
+      <Route
+        path="*"
+        element={<Navigate to={isSignedIn ? "/chat" : "/"} replace />}
+      />
     </Routes>
   )
 }
