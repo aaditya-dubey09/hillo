@@ -116,7 +116,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 session.endSession();
 
                 // Populate sender details for emission
-                await message.populate("sender", "name email avatar");
+                await message.populate("sender", "_id name email avatar");
 
                 // emit to chat room (for user inside active chat)
                 io.to(`chat: ${chatId}`).emit("new-message", message);
