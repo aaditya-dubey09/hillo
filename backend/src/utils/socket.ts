@@ -78,7 +78,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         });
 
         // handle sending messages
-        socket.on("send-message", async (data: { chatId: string; text: string }) => {
+        socket.on("send-message", async (data: { chatId: string; text: string }, callback?: (response: { success: boolean; error?: string }) => void) => {
             const { chatId, text } = data;
             if (!chatId || !Types.ObjectId.isValid(chatId)) {
                 socket.emit("socket-error", { message: "Invalid chat ID" });
@@ -116,7 +116,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 session.endSession();
 
                 // Populate sender details for emission
-                await message.populate("sender", "name avatar");
+                await message.populate("sender", "name email avatar");
 
                 // emit to chat room (for user inside active chat)
                 io.to(`chat: ${chatId}`).emit("new-message", message);
@@ -129,12 +129,17 @@ export const initializeSocket = (httpServer: HttpServer) => {
                         lastMessageAt: chat.lastMessageAt,
                     });
                 }
+
+                // Acknowledge success back to the sender
+                if (callback) callback({ success: true });
             } catch (error) {
                 if (session.inTransaction()) {
                     await session.abortTransaction();
                 }
                 session.endSession();
-                socket.emit("socket-error", { message: "Failed to send message" });
+                const errorMsg = "Failed to send message";
+                socket.emit("socket-error", { message: errorMsg });
+                if (callback) callback({ success: false, error: errorMsg });
             }
         });
 
@@ -151,6 +156,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
             try {
                 const chat = await Chat.findById(data.chatId);
                 if (chat) {
+                    // Find the other participant (not the current user)
                     const otherParticipantId = chat.participants.find((p: any) => p.toString() !== userId);
                     if (otherParticipantId) {
                         socket.to(`user: ${otherParticipantId}`).emit("typing", typingPayload);
