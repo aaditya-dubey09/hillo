@@ -1,6 +1,6 @@
 import { LoaderIcon } from "lucide-react"
 
-function PageLoader() {
+export function PageLoader() {
     return (
         <div role="status" className="flex items-center justify-center h-screen bg-black">
             <LoaderIcon className="size-12 animate-spin text-orange-500" />
@@ -8,5 +8,3 @@ function PageLoader() {
         </div>
     )
 }
-
-export default PageLoader

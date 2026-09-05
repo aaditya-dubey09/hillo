@@ -1,10 +1,9 @@
-import * as Sentry from "@sentry/react-native";
 import type { QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import type { Chat, Message, MessageSender } from '../types';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
+const SOCKET_URL = import.meta.env.VITE_API_URL;
 
 interface SocketState {
     socket: Socket | null;
@@ -19,7 +18,7 @@ interface SocketState {
     disconnect: () => void;
     joinChat: (chatId: string) => void;
     leaveChat: (chatId: string) => void;
-    sendMessage: (chatId: string, text: string, currentUser: MessageSender) => void;
+    sendMessage: (chatId: string, text: string, currentUser: any) => void;
     sendTyping: (chatId: string, isTyping: boolean) => void;
 }
 
@@ -35,23 +34,36 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     connect: (token, queryClient) => {
         const existingSocket = get().socket;
         if (existingSocket?.connected) return;
-        if (existingSocket) existingSocket.disconnect();
+        if (existingSocket) {
+            existingSocket.removeAllListeners();
+            existingSocket.disconnect()
+        };
 
-        const socket = io(SOCKET_URL, { auth: { token } });
+        const socket = io(SOCKET_URL, {
+            auth: { token },
+            reconnection: true,
+            reconnectionAttempts: 5,
+            timeout: 10000,
+        });
         socket.on("connect", () => {
             console.log("Socket connected:", socket.id);
-            Sentry.logger.info("Socket connected", { socketId: socket.id });
             set({ isConnected: true });
         });
 
+        socket.on("connect_error", (error) => {
+            console.error("Socket connection error: ", error.message);
+        });
+
+        socket.on("socket-error", (error: { message: string }) => {
+            console.error("Socket error:", error.message);
+        });
+
         socket.on("disconnect", () => {
-            console.log("Socket disconnected", socket.id);
-            Sentry.logger.info("Socket disconnected", { socketId: socket.id });
+            console.error("Socket disconnected", socket.id);
             set({ isConnected: false });
         });
 
         socket.on("online-users", ({ userIds }: { userIds: string[] }) => {
-            console.log("Received online users:", userIds);
             set({ onlineUsers: new Set(userIds) });
         });
 
@@ -69,24 +81,51 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
         });
 
-        socket.on("socket-error", (error: { message: string }) => {
-            console.error("Socket error:", error.message);
-            Sentry.logger.error("Socket error occured", {
-                message: error.message,
-            });
-        });
+        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string, chatId: string, isTyping: boolean }) => {
+            set((state) => {
+                const typingUsers = new Map(state.typingUsers);
+                if (isTyping) typingUsers.set(chatId, userId);
+                else typingUsers.delete(chatId);
+
+                return { typingUsers: typingUsers };
+            })
+        })
 
         socket.on("new-message", (message: Message) => {
-            const senderId = (message.sender as MessageSender)._id;
+            const senderObject = (message.sender as MessageSender);
             const { currentChatId } = get();
 
             // add message to the chat's message list, replacing optimistic messges
             queryClient.setQueryData<Message[]>(["messages", message.chat], (old) => {
                 if (!old) return [message];
-                // remove any optimistic messages (temp IDs) and add the real one
-                const filtered = old.filter((msg) => !msg._id.startsWith("temp-"));
-                if (filtered.some((msg) => msg._id === message._id)) return filtered;
-                return [...filtered, message];
+                // replace matching temp message or update existing
+                const hasReal = old.some((m) => m._id === message._id);
+                if (hasReal) {
+                    return old.map((m) => m._id === message._id ? message : m);
+                }
+                const tempIndex = old.findIndex((m) => m._id.startsWith("temp-") && m.text === message.text);
+                if (tempIndex !== -1) {
+                    const copy = [...old];
+                    copy[tempIndex] = message;
+                    return copy;
+                }
+                return [...old, message];
+            });
+
+            socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
+                queryClient.setQueryData<Chat[]>(["chats"], (oldChats) => {
+                    if (!oldChats) return [];
+                    return oldChats.map((chat) => {
+                        if (chat._id === chatId) {
+                            return {
+                                ...chat,
+                                lastMessage,
+                                lastMessageAt,
+                            };
+                        }
+                        return chat;
+                    });
+                });
             });
 
             // Update chat's lastMessage directly for instant UI update
@@ -95,24 +134,19 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                     if (chat._id === message.chat) {
                         return {
                             ...chat,
-                            lastMessage: {
-                                _id: message._id,
-                                text: message.text,
-                                sender: senderId,
-                                createdAt: message.createdAt,
-                            },
-                            lastMessageSender: message.createdAt,
+                            lastMessage: message,
+                            lastMessageAt: message.createdAt,
                         };
                     }
                     return chat;
                 })
             });
 
-            // mark as unread if not currently viewing this chat and message if from other user
+            // mark as unread if not currently viewing this chat and message from other user
             if (currentChatId !== message.chat) {
                 const chats = queryClient.getQueryData<Chat[]>(["chats"]);
                 const chat = chats?.find((c) => c._id === message.chat);
-                if (chat?.participant && senderId === chat.participant._id) {
+                if (chat?.participant && senderObject._id === chat.participant._id) {
                     set((state) => ({
                         unreadChats: new Set([...state.unreadChats, message.chat]),
                     }));
@@ -127,22 +161,13 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
         });
 
-        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string, chatId: string, isTyping: boolean }) => {
-            set((state) => {
-                const typingUsers = new Map(state.typingUsers);
-                if (isTyping) typingUsers.set(chatId, userId);
-                else typingUsers.delete(chatId);
-
-                return { typingUsers: typingUsers };
-            })
-        })
-
         set({ socket, queryClient });
     },
 
     disconnect: () => {
         const socket = get().socket;
         if (socket) {
+            socket.removeAllListeners();
             socket.disconnect();
             set({
                 socket: null,
@@ -153,7 +178,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                 currentChatId: null,
                 queryClient: null,
             });
-        };
+        }
     },
 
     joinChat: (chatId) => {
@@ -161,7 +186,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         set((state) => {
             const unreadChats = new Set(state.unreadChats);
             unreadChats.delete(chatId);
-            return { currentChatId: chatId, unreadChats: unreadChats };
+            return { currentChatId: chatId, unreadChats };
         });
 
         if (socket?.connected) {
@@ -181,40 +206,38 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         const { socket, queryClient } = get();
         if (!socket?.connected || !queryClient) return;
 
-        // optimistic updates
         const tempId = `temp-${Date.now()}`;
         const optimisticMessage: Message = {
             _id: tempId,
             chat: chatId,
-            sender: currentUser,
+            sender: {
+                _id: currentUser._id || currentUser.id,
+                name: currentUser.fullName || currentUser.firstName || currentUser.name || 'You',
+                email: currentUser.primaryEmailAddress?.emailAddress || currentUser.email || '',
+                avatar: currentUser.imageUrl || currentUser.avatar || '',
+            },
             text,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
 
-        // add optimistic message immediately
         queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
             if (!old) return [optimisticMessage];
             return [...old, optimisticMessage];
         });
 
-        socket.emit("send-message", { chatId, text });
+        // Inline acknowledgment callback to prevent multiple listeners on using (socket.once or socket.on) and ensure proper handling of success/failure
+        socket.emit("send-message", { chatId, text }, (response: { success: boolean; error?: string }) => {
+            if (!response?.success) {
+                console.error("Failed to send message:", response?.error || "Unknown socket error");
 
-        Sentry.logger.info("Message sent successfully", { chatId, messageLength: text.length });
-
-        const errorHandler = (error: { message: string }) => {
-            Sentry.logger.error("Failed to send message", {
-                chatId,
-                error: error.message,
-            });
-            queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
-                if (!old) return [];
-                return old.filter(msg => msg._id !== tempId);
-            });
-            socket.off("socket-error", errorHandler);
-        };
-
-        socket.once("socket-error", errorHandler);
+                // Revert optimistic message on failure
+                queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
+                    if (!old) return [];
+                    return old.filter((msg) => msg._id !== tempId);
+                });
+            }
+        });
     },
 
     sendTyping: (chatId, isTyping) => {

@@ -11,7 +11,7 @@ const AuthSync = () => {
     const { mutate: syncUser, status, reset } = useAuthCallback();
     const wasSignedIn = useRef(false); // ref to know if we need to clear state on sign-out
 
-    const {} = useSocketStore();
+    const {} = useSocketStore(); // todo: check this out
 
     useEffect(() => {
         if (isSignedIn && user && status === "idle") {

@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/react"
 import { Navigate, Route, Routes } from 'react-router'
 import './App.css'
-import PageLoader from './components/PageLoader'
+import {PageLoader} from './components/PageLoader'
 import { useUserSync } from './hooks/useUserSync'
 import ChatPage from './pages/ChatPage'
 import HomePage from './pages/HomePage'
