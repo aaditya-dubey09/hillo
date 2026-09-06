@@ -2,10 +2,12 @@ import { useAuth } from '@clerk/react';
 import { useSocketStore } from '../lib/socket';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useCurrentUser } from './useCurrentUser';
 
 export const useSocketConnection = (activeChatId: string | null) => {
     const { getToken, isSignedIn } = useAuth();
     const queryClient = useQueryClient();
+    const { data: currentUser } = useCurrentUser();
     const { socket, connect, disconnect, joinChat, leaveChat } = useSocketStore();
 
     // connect socket on mount
@@ -13,7 +15,7 @@ export const useSocketConnection = (activeChatId: string | null) => {
         let disposed = false;
         if (isSignedIn) {
             getToken().then((token) => {
-                if (!disposed && token) connect(token, queryClient);
+                if (!disposed && token) connect(token, queryClient, currentUser?._id);
             });
         } else {
             disposed = true;

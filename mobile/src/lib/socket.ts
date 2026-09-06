@@ -202,7 +202,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             return [...old, optimisticMessage];
         });
 
-        socket.emit("send-message", { chatId, text }, (response: { success: boolean; error?: string }) => {
+        socket.timeout(5000).emit("send-message", { chatId, text }, (response: { success: boolean; error?: string }) => {
             if (!response?.success) {
                 Sentry.logger.error("Failed to send message", {
                     chatId,

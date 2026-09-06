@@ -15,7 +15,7 @@ interface SocketState {
     currentChatId: string | null;
     queryClient: QueryClient | null;
 
-    connect: (token: string, queryClient: QueryClient) => void;
+    connect: (token: string, queryClient: QueryClient, userId?: string) => void;
     disconnect: () => void;
     joinChat: (chatId: string) => void;
     leaveChat: (chatId: string) => void;
@@ -32,7 +32,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     currentChatId: null,
     queryClient: null,
 
-    connect: (token, queryClient) => {
+    connect: (token, queryClient, userId) => {
         const existingSocket = get().socket;
         if (existingSocket?.connected) return;
         if (existingSocket) {
@@ -116,7 +116,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
             // mark as unread if not currently viewing this chat and message from other user
             if (currentChatId !== message.chat) {
-                const chats = queryClient.getQueryData<Chat[]>(chatsQueryKey());
+                const chats = queryClient.getQueryData<Chat[]>(chatsQueryKey(userId));
                 const chat = chats?.find((c) => c._id === message.chat);
                 if (chat?.participant && senderObject._id === chat.participant._id) {
                     set((state) => ({
@@ -135,7 +135,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // Event listener for real-time sidebar/chat list updates
         socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
-            queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
+            queryClient.setQueryData<Chat[]>(chatsQueryKey(userId), (oldChats) => {
                 if (!oldChats) return [];
                 const updatedChats = oldChats.map((chat) => {
                     if (chat._id === chatId) {
