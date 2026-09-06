@@ -1,7 +1,7 @@
 import type { Chat, Message } from "@/types";
 import { UserButton } from "@clerk/react";
 import { MessageSquareIcon, PlusIcon, SparklesIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ChatHeader } from "../components/ChatHeader";
 import { ChatInput } from "../components/ChatInput";
@@ -34,7 +34,18 @@ const ChatPage = () => {
     const { data: chats = [], isLoading: chatsLoading } = useChats();
     const { data: messages = [], isLoading: messagesLoading } = useMessages(activeChatId ?? undefined);
     const startChatMutation = useGetOrCreateChat();
-    const groupedMsgs = groupMessagesByDate(messages);
+    const groupedMsgs = useMemo(() => {
+        return groupMessagesByDate(messages);
+    }, [messages]);
+
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+        };
+    }, [activeChatId])
 
     // Scroll to bottom
     useEffect(() => {
@@ -60,7 +71,7 @@ const ChatPage = () => {
         sendTyping(activeChatId, false);
     };
 
-    const handleTyping = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleTyping = (e: ChangeEvent<HTMLTextAreaElement>) => {
         setMessageInput(e.target.value);
         if (!activeChatId || !socket) return;
 
@@ -78,7 +89,7 @@ const ChatPage = () => {
     return (
         <div className="h-screen bg-base-100 text-base-content flex">
             {/* sidebar */}
-            <div className="w-80 border-right border-base-300 flex flex-col bg-base-200">
+            <div className="w-80 border-r border-base-300 flex flex-col bg-base-200">
                 {/* header */}
                 <div className="p-4 border-b border-base-300">
                     <div className="flex items-center justify-between mb-4">
@@ -165,7 +176,7 @@ const ChatPage = () => {
                             value={messageInput}
                             onChange={handleTyping}
                             onSubmit={handleSend}
-                            disabled={!messageInput.trim()}
+                            disabled={!messageInput.trim() || !socket || !currentUser}
                         />
                     </>
                 ) : <NoChatsSelectedUI />}

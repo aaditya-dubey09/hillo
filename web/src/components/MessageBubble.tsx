@@ -1,7 +1,7 @@
-import type { Message } from "@/types";
+import type { Message, User } from "../types";
 import { CheckCheck } from "lucide-react";
 
-export function MessageBubble({ message, currentUser }: { message: Message; currentUser: any }) {
+export function MessageBubble({ message, currentUser }: { message: Message; currentUser: User | undefined }) {
     const isMe = message.sender?._id === currentUser?._id;
     const time = message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit' }) : "";
 

@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import type { Chat, Message, MessageSender } from '../types';
+import { chatsQueryKey } from "../hooks/useChats";
 
 const SOCKET_URL = import.meta.env.VITE_API_URL;
 
@@ -113,7 +114,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
 
             socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
-                queryClient.setQueryData<Chat[]>(["chats"], (oldChats) => {
+                queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
                     if (!oldChats) return [];
                     return oldChats.map((chat) => {
                         if (chat._id === chatId) {
@@ -129,7 +130,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
 
             // Update chat's lastMessage directly for instant UI update
-            queryClient.setQueryData<Chat[]>(["chats"], (oldChats) => {
+            queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
                 return oldChats?.map((chat) => {
                     if (chat._id === message.chat) {
                         return {
@@ -144,7 +145,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
             // mark as unread if not currently viewing this chat and message from other user
             if (currentChatId !== message.chat) {
-                const chats = queryClient.getQueryData<Chat[]>(["chats"]);
+                const chats = queryClient.getQueryData<Chat[]>(chatsQueryKey());
                 const chat = chats?.find((c) => c._id === message.chat);
                 if (chat?.participant && senderObject._id === chat.participant._id) {
                     set((state) => ({

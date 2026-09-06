@@ -8,7 +8,7 @@ export const useMessages = (chatId?: string) => {
 
     return useQuery({
         queryKey: ["messages", chatId],
-        queryFn: async (): Promise<Message[]> => {
+        queryFn: async () => {
             const token = await getToken();
             const res = await api.get<Message[]>(`/messages/chat/${chatId}`, {
                 headers: { Authorization: `Bearer ${token}` },

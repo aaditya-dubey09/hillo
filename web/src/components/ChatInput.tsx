@@ -1,24 +1,32 @@
-import { Send, SendIcon } from "lucide-react";
+import { SendIcon } from "lucide-react";
 
 export function ChatInput({ value, onChange, onSubmit, disabled }: {
     value: string,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void,
     onSubmit: (e: SubmitEvent | React.SyntheticEvent
     ) => void,
     disabled: boolean
 }) {
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (!disabled) onSubmit(e);
+        }
+    };
+
     return (
         // todo: it submits on pressing enter/shift+enter fix this
         // todo: also increase the height of input box when text is more than 1 line instead of hiding overflow
-        <form onSubmit={onSubmit} className="p-2 bg-linear-to-t from-black/30">
+        <form onSubmit={(e) => {e.preventDefault(); onSubmit(e);}} className="p-2 bg-linear-to-t from-black/30">
             <div className="flex items-center gap-3">
-                <input
-                    type="text"
+                <textarea
                     value={value}
                     onChange={onChange}
+                    onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
-                    className="input flex-1 rounded-xl bg-base-300/40 border-none outline-none placeholder:text-base-content/60"
+                    rows={1}
+                    className="textarea textarea-bordered w-full resize-none min-h-[2.5rem] max-h-40 rounded-xl bg-base-300/40 border-none outline-none placeholder:text-base-content/60"
                 />
                 <button
                     type="submit"

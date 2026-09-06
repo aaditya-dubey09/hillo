@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import type { Chat } from '../types';
 
+export const chatsQueryKey = (userId?: string | null) => ["chats", userId] as const;
+
 export const useChats = () => {
     const { userId, getToken } = useAuth();
 
     return useQuery({
-        queryKey: ["chats", userId],
+        queryKey: chatsQueryKey(userId),
         queryFn: async () => {
             const token = await getToken();
             const res = await api.get<Chat[]>("/chats", {
@@ -33,6 +35,6 @@ export const useGetOrCreateChat = () => {
             )
             return res.data;
         },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chats"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: chatsQueryKey() }),
     })
 }

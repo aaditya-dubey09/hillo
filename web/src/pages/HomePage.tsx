@@ -68,12 +68,16 @@ function HomePage() {
                                 </button>
                             </SignUpButton>
                             <div>
-                                <button className="px-8 py-4 text-base-content/60 font-semibold hover:text-base-content transition cursor-pointer">
+                                <a href="https://github.com/aaditya-dubey09/hillo/releases/latest"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-8 py-4 text-base-content/60 font-semibold hover:text-base-content transition cursor-pointer"
+                                >
                                     <span className="inline-flex items-center justify-center gap-2">
                                         <LucideDownload />
-                                        Download the App
+                                        Download App
                                     </span>
-                                </button>
+                                </a>
                             </div>
                         </div>
 
@@ -198,7 +202,7 @@ function HomePage() {
             </div>
             <div className="h-10 text-center text-sm text-base-content/60 flex flex-col items-center border-t-2 border-transparent bg-gradient-to-r from-yellow-300 via-orange-400 to-rose-500 bg-clip-border rounded-t-full">
                 <div className="h-full w-full p-4 bg-base-200 rounded-t-full" >
-                        <span>Disclaimer: This is a demo application for educational purposes only, <a href="https://github.com/aaditya-dubey09/hillo" className="text-amber-500 hover:underline">source.</a></span>
+                    <span>Disclaimer: This is a demo application for educational purposes only, <a href="https://github.com/aaditya-dubey09/hillo" className="text-amber-500 hover:underline">source.</a></span>
                 </div>
             </div>
         </>

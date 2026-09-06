@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../lib/axios";
 import { useAuth } from "@clerk/react";
+import type { User } from "../types";
 
 export const useCurrentUser = () => {
     const { getToken, isSignedIn } = useAuth();
@@ -9,7 +10,7 @@ export const useCurrentUser = () => {
         queryKey: ["currentUser"],
         queryFn: async () => {
             const token = await getToken();
-            const { data } = await api.get("/auth/me", {
+            const { data } = await api.get<User | undefined>("/auth/me", {
                 headers: { Authorization: `Bearer ${token}` },
             });
             return data;

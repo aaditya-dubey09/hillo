@@ -12,8 +12,7 @@ export const formatTime = (date: string | Date) => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Calculate calendar day difference
-    const diffTime = today.getTime() - targetDay.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(targetDay.getFullYear(), targetDay.getMonth(), targetDay.getDate())) / (1000 * 60 * 60 * 24);
 
     // For Today -> Show time only (e.g., "10:15 PM")
     if (diffDays === 0) {
@@ -53,8 +52,7 @@ export const groupMessagesByDate = (messages: Message[]): Record<string, Message
         const targetDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        const diffTime = today.getTime() - targetDay.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(targetDay.getFullYear(), targetDay.getMonth(), targetDay.getDate())) / (1000 * 60 * 60 * 24);
 
         let header = "";
 
