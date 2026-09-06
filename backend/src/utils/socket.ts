@@ -16,7 +16,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         process.env.FRONTEND_URL,
     ].filter(Boolean) as string[];
 
-    const io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } })
+    const io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } });
 
     // verify socket connection
     io.use(async (socket, next) => {
@@ -37,7 +37,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         } catch (error) {
             return next(new AppError("Invalid authentication token", 401));
         }
-    })
+    });
 
     io.on("connection", (socket) => {
         const userId = socket.data.userId;
@@ -56,6 +56,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
             socket.broadcast.emit("user-online", { userId });
         }
 
+        // Join personal user room for targeted updates
         socket.join(`user: ${userId}`);
 
         socket.on("join-chat", async (chatId: string) => {
@@ -163,7 +164,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                     }
                 }
             } catch (error) {
-                console.error("Error occurred while handling typing indicator:", error); // although it's not so critical, we can log it for debugging purposes
+                console.error("Error occurred while handling typing indicator:", error);
             }
         });
 

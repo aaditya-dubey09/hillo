@@ -1,8 +1,8 @@
+import { SearchIcon, UsersIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { UsersIcon, SearchIcon, SaveIcon, UserIcon } from "lucide-react";
-import { useSocketStore } from "../lib/socket";
-import { useUsers } from "../hooks/useUsers";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useUsers } from "../hooks/useUsers";
+import { useSocketStore } from "../lib/socket";
 
 export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
     onStartChat: (participantId: string) => void;
@@ -30,6 +30,7 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
     }
 
     const searchResults = allUsers.filter((u) => {
+        if (!searchQuery.trim()) return false;
         const query = searchQuery.toLowerCase();
         return (
             u._id !== currentUser?._id &&

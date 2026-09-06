@@ -10,11 +10,13 @@ export const useSocketConnection = (activeChatId: string | null) => {
 
     // connect socket on mount
     useEffect(() => {
+        let disposed = false;
         if (isSignedIn) {
             getToken().then((token) => {
-                if (token) connect(token, queryClient);
+                if (!disposed && token) connect(token, queryClient);
             });
         } else {
+            disposed = true;
             disconnect();
         }
 

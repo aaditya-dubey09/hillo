@@ -9,6 +9,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled }: {
 }) {
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.nativeEvent.isComposing) return;
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             if (!disabled) onSubmit(e);
@@ -16,8 +17,6 @@ export function ChatInput({ value, onChange, onSubmit, disabled }: {
     };
 
     return (
-        // todo: it submits on pressing enter/shift+enter fix this
-        // todo: also increase the height of input box when text is more than 1 line instead of hiding overflow
         <form onSubmit={(e) => {e.preventDefault(); onSubmit(e);}} className="p-2 bg-linear-to-t from-black/30">
             <div className="flex items-center gap-3">
                 <textarea

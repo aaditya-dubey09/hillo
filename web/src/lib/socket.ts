@@ -37,8 +37,8 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         if (existingSocket?.connected) return;
         if (existingSocket) {
             existingSocket.removeAllListeners();
-            existingSocket.disconnect()
-        };
+            existingSocket.disconnect();
+        }
 
         const socket = io(SOCKET_URL, {
             auth: { token },
@@ -46,6 +46,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             reconnectionAttempts: 5,
             timeout: 10000,
         });
+
         socket.on("connect", () => {
             console.log("Socket connected:", socket.id);
             set({ isConnected: true });
@@ -69,40 +70,40 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         });
 
         socket.on("user-online", ({ userId }: { userId: string }) => {
-            set(state => ({
+            set((state) => ({
                 onlineUsers: new Set([...state.onlineUsers, userId]),
             }));
         });
 
         socket.on("user-offline", ({ userId }: { userId: string }) => {
-            set(state => {
+            set((state) => {
                 const onlineUsers = new Set(state.onlineUsers);
                 onlineUsers.delete(userId);
                 return { onlineUsers };
             });
         });
 
-        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string, chatId: string, isTyping: boolean }) => {
+        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string; chatId: string; isTyping: boolean }) => {
             set((state) => {
                 const typingUsers = new Map(state.typingUsers);
                 if (isTyping) typingUsers.set(chatId, userId);
                 else typingUsers.delete(chatId);
 
-                return { typingUsers: typingUsers };
-            })
-        })
+                return { typingUsers };
+            });
+        });
 
+        // Handles active chat message stream
         socket.on("new-message", (message: Message) => {
-            const senderObject = (message.sender as MessageSender);
+            const senderObject = message.sender as MessageSender;
             const { currentChatId } = get();
 
-            // add message to the chat's message list, replacing optimistic messges
+            // add message to the chat's message list, replacing optimistic messages
             queryClient.setQueryData<Message[]>(["messages", message.chat], (old) => {
                 if (!old) return [message];
-                // replace matching temp message or update existing
                 const hasReal = old.some((m) => m._id === message._id);
                 if (hasReal) {
-                    return old.map((m) => m._id === message._id ? message : m);
+                    return old.map((m) => (m._id === message._id ? message : m));
                 }
                 const tempIndex = old.findIndex((m) => m._id.startsWith("temp-") && m.text === message.text);
                 if (tempIndex !== -1) {
@@ -111,36 +112,6 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                     return copy;
                 }
                 return [...old, message];
-            });
-
-            socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
-                queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
-                    if (!oldChats) return [];
-                    return oldChats.map((chat) => {
-                        if (chat._id === chatId) {
-                            return {
-                                ...chat,
-                                lastMessage,
-                                lastMessageAt,
-                            };
-                        }
-                        return chat;
-                    });
-                });
-            });
-
-            // Update chat's lastMessage directly for instant UI update
-            queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
-                return oldChats?.map((chat) => {
-                    if (chat._id === message.chat) {
-                        return {
-                            ...chat,
-                            lastMessage: message,
-                            lastMessageAt: message.createdAt,
-                        };
-                    }
-                    return chat;
-                })
             });
 
             // mark as unread if not currently viewing this chat and message from other user
@@ -158,7 +129,27 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             set((state) => {
                 const typingUsers = new Map(state.typingUsers);
                 typingUsers.delete(message.chat);
-                return { typingUsers: typingUsers };
+                return { typingUsers };
+            });
+        });
+
+        // Event listener for real-time sidebar/chat list updates
+        socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
+            queryClient.setQueryData<Chat[]>(chatsQueryKey(), (oldChats) => {
+                if (!oldChats) return [];
+                const updatedChats = oldChats.map((chat) => {
+                    if (chat._id === chatId) {
+                        return {
+                            ...chat,
+                            lastMessage,
+                            lastMessageAt,
+                        };
+                    }
+                    return chat;
+                });
+
+                // Sort chats by most recent message date
+                return updatedChats.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
             });
         });
 
@@ -227,7 +218,6 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             return [...old, optimisticMessage];
         });
 
-        // Inline acknowledgment callback to prevent multiple listeners on using (socket.once or socket.on) and ensure proper handling of success/failure
         socket.emit("send-message", { chatId, text }, (response: { success: boolean; error?: string }) => {
             if (!response?.success) {
                 console.error("Failed to send message:", response?.error || "Unknown socket error");
@@ -247,4 +237,4 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             socket.emit("typing", { chatId, isTyping });
         }
     },
-}))
+}));

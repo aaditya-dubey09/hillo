@@ -4,7 +4,8 @@ import { useSocketStore } from "../lib/socket";
 export function ChatHeader ({ participant, chatId }: { participant: MessageSender; chatId: string }) {
     const { onlineUsers, typingUsers } = useSocketStore();
     const isOnline = onlineUsers.has(participant?._id ?? "");
-    const isTyping = !!typingUsers.get(chatId);
+    const typingUserId = typingUsers.get(chatId);
+    const isTyping = typingUserId && typingUserId === participant?._id;
 
     return (
         <div className="h-16 px-6 border-b border-base-300 flex items-center gap-4 bg-base-200/80">

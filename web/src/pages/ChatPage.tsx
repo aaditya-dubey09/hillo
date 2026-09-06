@@ -41,6 +41,7 @@ const ChatPage = () => {
     useEffect(() => {
         return () => {
             if (typingTimeoutRef.current) {
+                if (activeChatId) sendTyping(activeChatId, false);
                 clearTimeout(typingTimeoutRef.current);
                 typingTimeoutRef.current = null;
             }
