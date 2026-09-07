@@ -15,7 +15,7 @@ export interface MessageSender {
 export interface Message {
     _id: string;
     chat: string;
-    sender: MessageSender | string;
+    sender: MessageSender;
     text: string;
     createdAt: string;
     updatedAt: string;
@@ -24,14 +24,15 @@ export interface Message {
 export interface ChatLastMessage {
     _id: string;
     text: string;
-    sender: string;
+    sender: MessageSender;
     createdAt: string;
 }
 
 export interface Chat {
     _id: string;
-    participant: MessageSender | null;
-    lastMessage: ChatLastMessage | null;
+    participant?: MessageSender;
+    participants: MessageSender[];
+    lastMessage?: ChatLastMessage | null; // Nullable for newly created chats without messages
     lastMessageAt: string;
     createdAt: string;
 }

@@ -30,8 +30,9 @@ export interface ChatLastMessage {
 
 export interface Chat {
     _id: string;
-    participant: MessageSender;
-    lastMessage: ChatLastMessage;
+    participant?: MessageSender;
+    participants: MessageSender[];
+    lastMessage?: ChatLastMessage | null; // Nullable for newly created chats without messages
     lastMessageAt: string;
     createdAt: string;
 }

@@ -140,6 +140,7 @@ const ChatPage = () => {
             <div className="flex flex-col flex-1">
                 {activeChatId && activeChat ? (
                     <>
+                    {/* todo: fix this */}
                         <ChatHeader
                             participant={activeChat.participant}
                             chatId={activeChatId}

@@ -1,11 +1,11 @@
-import { Socket, Server as SocketServer } from "socket.io";
-import { Server as HttpServer } from "http";
+// tood: send full file to gemini for review
 import { verifyToken } from "@clerk/express";
-import { Message } from "../models/message";
-import { Chat } from "../models/chat";
-import { User } from "../models/user";
-import { AppError } from "./AppError";
+import { Server as HttpServer } from "http";
 import mongoose, { Types } from "mongoose";
+import { Server as SocketServer } from "socket.io";
+import { Chat } from "../models/chat";
+import { Message } from "../models/message";
+import { User } from "../models/user";
 
 export const onlineUsers: Map<string, Set<string>> = new Map();
 
@@ -22,23 +22,26 @@ export const initializeSocket = (httpServer: HttpServer) => {
     io.use(async (socket, next) => {
         const token = socket.handshake.auth.token;
         if (!token) {
-            return next(new AppError("Authentication token is missing", 401));
+            return next(new Error("Authentication token is missing"));
         }
 
         try {
-            const session = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY! });
+            const session = await verifyToken(token, {
+                secretKey: process.env.CLERK_SECRET_KEY!
+            });
             const clerkId = session.sub;
-            const user = await User.findOne({ clerkId });
+            const user = await User.findOne({ clerkId }).select("_id");
             if (!user) {
-                return next(new AppError("User not found", 404));
+                return next(new Error("User not found"));
             }
             socket.data.userId = user._id.toString();
             next();
         } catch (error) {
-            return next(new AppError("Invalid authentication token", 401));
+            return next(new Error("Invalid authentication token"));
         }
     });
 
+    // main socket connections handler
     io.on("connection", (socket) => {
         const userId = socket.data.userId;
 
@@ -48,7 +51,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         userSockets.add(socket.id);
         onlineUsers.set(userId, userSockets);
 
-        // send currently online user to new connected user
+        // send list of currently online user to new connected user
         socket.emit("online-users", { userIds: Array.from(onlineUsers.keys()) });
 
         // notify all users about the new online user
@@ -57,7 +60,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         }
 
         // Join personal user room for targeted updates
-        socket.join(`user: ${userId}`);
+        socket.join(`user:${userId}`);
 
         socket.on("join-chat", async (chatId: string) => {
             if (typeof chatId !== "string" || !Types.ObjectId.isValid(chatId)) {
@@ -71,21 +74,39 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 return;
             }
 
-            socket.join(`chat: ${chatId}`);
+            socket.join(`chat:${chatId}`);
         });
 
+        // leave active chat room
         socket.on("leave-chat", (chatId: string) => {
-            socket.leave(`chat: ${chatId}`);
+            if (typeof chatId === "string") {
+                socket.leave(`chat:${chatId}`);
+            }
         });
 
-        // handle sending messages
-        socket.on("send-message", async (data: { chatId: string; text: string }, callback?: (response: { success: boolean; error?: string }) => void) => {
+        // send message handler
+        socket.on("send-message", 
+            async (
+                data: { chatId: string; text: string }, 
+                callback?: (response: { success: boolean; error?: string }) => void
+            ) => {
             const { chatId, text } = data;
+            // Validation
             if (!chatId || !Types.ObjectId.isValid(chatId)) {
-                socket.emit("socket-error", { message: "Invalid chat ID" });
+                const err = "Invalid chat ID";
+                socket.emit("socket-error", { message: err });
+                if (callback) callback({ success: false, error: err });
                 return;
             }
 
+            if (typeof text !== "string" || !text.trim() || text.trim().length > 5000) {
+                const err = "Message text must be between 1 and 5000 characters";
+                socket.emit("socket-error", { message: err });
+                if (callback) callback({ success: false, error: err });
+                return;
+            }
+
+            const sanitizedText = text.trim();
             const session = await mongoose.startSession();
             try {
                 session.startTransaction();
@@ -97,34 +118,35 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
                 if (!chat) {
                     await session.abortTransaction();
-                    session.endSession();
-                    socket.emit("socket-error", { message: "Chat not found" });
+                    const err = "Chat not found or unauthorized";
+                    socket.emit("socket-error", { message: err });
+                    if (callback) callback({ success: false, error: err });
                     return;
                 }
 
                 const message = new Message({
                     chat: chatId,
                     sender: userId,
-                    text,
+                    text: sanitizedText,
                 });
                 await message.save({ session });
 
+                // Update the chat with the new message
                 chat.lastMessage = message._id;
                 chat.lastMessageAt = new Date();
                 await chat.save({ session });
 
                 await session.commitTransaction();
-                session.endSession();
 
-                // Populate sender details for emission
+                // Populate sender details for clients
                 await message.populate("sender", "_id name email avatar");
 
-                // emit to chat room (for user inside active chat)
-                io.to(`chat: ${chatId}`).emit("new-message", message);
+                // emit to clients actively inside this specific chat room
+                io.to(`chat:${chatId}`).emit("new-message", message);
 
-                // emit to participants personal rooms (for chat list update)
+                // emit to all chat participants personal rooms for sidebars/chat lists
                 for (const participantId of chat.participants) {
-                    io.to(`user: ${participantId}`).emit("chat-list-update", {
+                    io.to(`user:${participantId.toString()}`).emit("chat-list-update", {
                         chatId,
                         lastMessage: message,
                         lastMessageAt: chat.lastMessageAt,
@@ -137,37 +159,42 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 if (session.inTransaction()) {
                     await session.abortTransaction();
                 }
-                session.endSession();
+                console.error("Socket send-message error:", error);
                 const errorMsg = "Failed to send message";
                 socket.emit("socket-error", { message: errorMsg });
                 if (callback) callback({ success: false, error: errorMsg });
+            } finally {
+                session.endSession();
             }
         });
 
+        // typing indicator handler
         socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
+            if (!data?.chatId || typeof data.isTyping !== "boolean") return;
             const typingPayload = {
                 userId,
                 chatId: data.chatId,
                 isTyping: data.isTyping
             };
-            // emit to chat room (for users inside the chat)
-            socket.to(`chat: ${data.chatId}`).emit("typing", typingPayload);
+            // emit to users actively viewing this chat
+            socket.to(`chat:${data.chatId}`).emit("typing", typingPayload);
 
-            // also emit to other participant's personal room (for chat list view)
+            // also emit to other participant's personal room (for chat list status)
             try {
-                const chat = await Chat.findById(data.chatId);
+                const chat = await Chat.findById(data.chatId).select("participants");
                 if (chat) {
                     // Find the other participant (not the current user)
-                    const otherParticipantId = chat.participants.find((p: any) => p.toString() !== userId);
-                    if (otherParticipantId) {
-                        socket.to(`user: ${otherParticipantId}`).emit("typing", typingPayload);
+                    const otherParticipantId = chat.participants.filter((p) => p.toString() !== userId);
+                    for (const participantId of otherParticipantId) {
+                        socket.to(`user:${participantId.toString()}`).emit("typing", typingPayload);
                     }
                 }
             } catch (error) {
-                console.error("Error occurred while handling typing indicator:", error);
+                console.error("Error handling typing indicator:", error);
             }
         });
 
+        // disconnect handler
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
             if (userSockets) {

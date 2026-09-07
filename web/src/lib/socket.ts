@@ -159,7 +159,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     disconnect: () => {
         const socket = get().socket;
         if (socket) {
-            socket.removeAllListeners();
+            socket.removeAllListeners(); // Remove all event listeners to prevent memory leaks
             socket.disconnect();
             set({
                 socket: null,
@@ -196,6 +196,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
     sendMessage: (chatId, text, currentUser) => {
         const { socket, queryClient } = get();
+
+        // Prevent empty messages or whitespace-only messages
+        const trimmedText = text.trim();
+        if (!trimmedText || trimmedText.length > 5000) return;
         if (!socket?.connected || !queryClient) return;
 
         const tempId = `temp-${Date.now()}`;
@@ -208,27 +212,31 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                 email: currentUser.primaryEmailAddress?.emailAddress || currentUser.email || '',
                 avatar: currentUser.imageUrl || currentUser.avatar || '',
             },
-            text,
+            text: trimmedText,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
 
+        // add optimistic message immediately
         queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
             if (!old) return [optimisticMessage];
             return [...old, optimisticMessage];
         });
 
-        socket.emit("send-message", { chatId, text }, (response: { success: boolean; error?: string }) => {
-            if (!response?.success) {
-                console.error("Failed to send message:", response?.error || "Unknown socket error");
+        socket.timeout(5000).emit(
+            "send-message",
+            { chatId, text: trimmedText },
+            (err: Error | null, response: { success: boolean; error?: string }) => {
+                if (err || !response?.success) {
+                    console.error("Failed to send message:", response?.error || "Unknown socket error");
 
-                // Revert optimistic message on failure
-                queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
-                    if (!old) return [];
-                    return old.filter((msg) => msg._id !== tempId);
-                });
-            }
-        });
+                    // Revert optimistic message on error or timeout
+                    queryClient.setQueryData<Message[]>(["messages", chatId], (old) => {
+                        if (!old) return [];
+                        return old.filter((msg) => msg._id !== tempId);
+                    });
+                }
+            });
     },
 
     sendTyping: (chatId, isTyping) => {
