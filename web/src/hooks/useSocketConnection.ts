@@ -11,11 +11,12 @@ export const useSocketConnection = (activeChatId: string | null) => {
     const { socket, connect, disconnect, joinChat, leaveChat } = useSocketStore();
 
     // connect socket on mount
+    const currentUserId = currentUser?._id;
     useEffect(() => {
         let disposed = false;
-        if (isSignedIn) {
+        if (isSignedIn && currentUserId) {
             getToken().then((token) => {
-                if (!disposed && token) connect(token, queryClient, currentUser?._id);
+                if (!disposed && token) connect(token, queryClient, currentUserId);
             });
         } else {
             disposed = true;
@@ -23,9 +24,10 @@ export const useSocketConnection = (activeChatId: string | null) => {
         }
 
         return () => {
+            disposed = true;
             disconnect();
         };
-    }, [isSignedIn, connect, disconnect, getToken, queryClient]);
+    }, [isSignedIn, currentUserId, connect, disconnect, getToken, queryClient]);
 
     // join/leave chat rooms
     useEffect(() => {
