@@ -178,7 +178,16 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
         // typing indicator handler
         socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
-            if (!data || !data?.chatId || typeof data.isTyping !== "boolean") return;
+            // Validation
+            if (
+                !data ||
+                !data.chatId ||
+                typeof data.chatId !== "string" ||
+                !Types.ObjectId.isValid(data.chatId) ||
+                typeof data.isTyping !== "boolean"
+            ) {
+                return;
+            }
 
             // verify user is actually a participant in this chat
             const chat = await Chat.findOne({ _id: data.chatId, participants: userId }).select("participants");

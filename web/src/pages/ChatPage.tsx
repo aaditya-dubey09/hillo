@@ -1,5 +1,5 @@
 import type { Chat, Message } from "@/types";
-import { UserButton } from "@clerk/react";
+import { useClerk, UserButton } from "@clerk/react";
 import { EllipsisVerticalIcon, LogOutIcon, MessageSquareIcon, MessageSquareText, PhoneCall, PlusIcon, SearchIcon, Settings, SparklesIcon, UserPlus, VideoIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -31,6 +31,7 @@ const ChatPage = () => {
 
     useSocketConnection(activeChatId);
 
+    const { signOut } = useClerk();
     const { data: chats = [], isLoading: chatsLoading } = useChats();
     const { data: messages = [], isLoading: messagesLoading } = useMessages(activeChatId ?? undefined);
     const startChatMutation = useGetOrCreateChat();
@@ -88,7 +89,9 @@ const ChatPage = () => {
     const activeChat = chats.find((c) => c._id === activeChatId);
 
     const SignOutHandler = () => {
-        // confirm sign out with a dialog box and if confirmed, sign out the user
+        if (window.confirm("Are you sure you want to sign out?")) {
+            signOut({ redirectUrl: "/" });
+        }
     }
 
     return (
