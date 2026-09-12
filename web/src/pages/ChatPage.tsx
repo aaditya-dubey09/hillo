@@ -1,6 +1,6 @@
 import type { Chat, Message } from "@/types";
 import { UserButton } from "@clerk/react";
-import { MessageSquareIcon, PlusIcon, SparklesIcon } from "lucide-react";
+import { EllipsisVerticalIcon, LogOutIcon, MessageSquareIcon, MessageSquareText, PhoneCall, PlusIcon, SearchIcon, Settings, SparklesIcon, UserPlus, VideoIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ChatHeader } from "../components/ChatHeader";
@@ -87,30 +87,67 @@ const ChatPage = () => {
 
     const activeChat = chats.find((c) => c._id === activeChatId);
 
+    const SignOutHandler = () => {
+        // confirm sign out with a dialog box and if confirmed, sign out the user
+    }
+
     return (
-        <div className="h-screen bg-base-100 text-base-content flex">
+        <div className="h-screen bg-[#28282D] text-base-content flex">
+            <div className="w-10 flex flex-col items-center justify-between border-r border-[#28282D] p-2">
+                <div className="flex flex-col items-center gap-4 mt-3">
+                    <MessageSquareText className="cursor-pointer text-white" />
+                    <button onClick={() => console.log("Phone call clicked")}>
+                        <PhoneCall className="cursor-pointer text-[#888]" />
+                    </button>
+                    <button onClick={() => console.log("Video call clicked")}>
+                        <VideoIcon className="cursor-pointer text-[#888]" />
+                    </button>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                    <UserButton />
+                    <button onClick={() => console.log("Settings clicked")}>
+                        <Settings className="cursor-pointer text-[#888]" />
+                    </button>
+                    <button onClick={() => SignOutHandler()}>
+                        <LogOutIcon className="cursor-pointer text-[#888]" />
+                    </button>
+                </div>
+            </div>
             {/* sidebar */}
-            <div className="w-80 border-r border-base-300 flex flex-col bg-base-200">
+            <div className="w-80 flex flex-col bg-[#212126] border-r border-[#28282D]">
                 {/* header */}
-                <div className="p-4 border-b border-base-300">
+                <div className="p-4 border-b border-[#28282D]">
                     <div className="flex items-center justify-between mb-4">
                         <Link to="/chat" className="flex items-center gap-2">
-                            <div
-                                className="w-8 h-8 rounded-lg bg-linear-to-br from-amber-400 to-orange-500 flex items-center justify-center"
-                            >
-                                <SparklesIcon className="w-4 h-4 text-primary-content" />
-                            </div>
                             <span className="font-bold">Hillo</span>
                         </Link>
-                        <UserButton />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsNewChatModalOpen(true)}
+                                className="border-none cursor-pointer"
+                            >
+                                <UserPlus className="size-4" />
+                            </button>
+                            <EllipsisVerticalIcon className="size-5 cursor-pointer" />
+                        </div>
                     </div>
-                    <button
-                        onClick={() => setIsNewChatModalOpen(true)}
-                        className="btn btn-primary btn-block gap-2 rounded-xl bg-linear-to-r from-amber-500 to-orange-500 border-none"
-                    >
-                        <PlusIcon className="w-4 h-4" />
-                        New Chat
-                    </button>
+                    <div className="inline-flex items-center gap-2 bg-transparent border border-[#888] rounded-full px-3 py-1 w-full">
+                        <input
+                            className="peer bg-transparent border-none placeholder:text-[#888] outline-none ring-0 order-last w-full"
+                            placeholder="Search..."
+                        />
+                        <SearchIcon className="peer-focus:hidden order-first size-5 text-[#888]" />
+                    </div>
+                    <div className="flex items-center gap-2 mt-4">
+                        {["All", "Unread", "Groups", "New"].map((filter) => (
+                            <button
+                                key={filter}
+                                className={`${filter === 'All' ? 'bg-[#38383D] text-base-content' : 'bg-[#28282D] text-base-content/50'} text-xs bg-[#28282D] rounded-full py-0.5 px-2 transition-colors cursor-pointer`}
+                            >
+                                <span>{filter}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* chat list */}
@@ -140,7 +177,6 @@ const ChatPage = () => {
             <div className="flex flex-col flex-1">
                 {activeChatId && activeChat ? (
                     <>
-                    {/* todo: fix this */}
                         <ChatHeader
                             participant={activeChat.participant}
                             chatId={activeChatId}

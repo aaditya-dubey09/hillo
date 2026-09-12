@@ -15,6 +15,7 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
     const [searchQuery, setSearchQuery] = useState("");
     const { onlineUsers } = useSocketStore();
     const { data: allUsers = [] } = useUsers();
+
     const isOnline = (id: string) => onlineUsers.has(id);
 
     useEffect(() => {
@@ -23,14 +24,15 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
         }
     }, [isOpen]);
 
+
+    if (!isOpen || !currentUser) return null;
+
     const handleStartChat = (participantId: string) => {
         onStartChat(participantId);
-        setSearchQuery("");
-        onClose();
     }
 
     const searchResults = allUsers.filter((u) => {
-        if (!searchQuery.trim()) return false;
+        if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
         return (
             u._id !== currentUser?._id &&
@@ -69,7 +71,7 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
                                     key={u._id}
                                     onClick={() => handleStartChat(u._id)}
                                     disabled={isPending}
-                                    className="btn btn-ghost justify-start gap-3 w-full normal-case"
+                                    className="flex items-center justify-start gap-3 p-2 hover:bg-base-300 rounded-lg cursor-pointer w-full normal-case transition-colors duration-200"
                                 >
                                     <div className="relative">
                                         <img src={u.avatar} alt="" className="w-10 h-10 rounded-full" />
@@ -86,18 +88,21 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
                         </div>
                     )}
                 </div>
-                <div className="modal-action">
-                    <form method="dialog">
-                        <button
-                            className="btn"
-                            onClick={() => {
-                                setSearchQuery("");
-                                onClose();
-                            }}
-                        >
-                            Close
-                        </button>
-                    </form>
+                <div className="flex justify-between items-center">
+                    <p className="text-[10px] text-base-content/30 w-xs mt-4">*The list will be removed later, so that users can search others via there usernames only.</p>
+                    <div className="modal-action">
+                        <form method="dialog">
+                            <button
+                                className="btn"
+                                onClick={() => {
+                                    setSearchQuery("");
+                                    onClose();
+                                }}
+                            >
+                                Close
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
             <form method="dialog" className="modal-backdrop" onClick={onClose}>

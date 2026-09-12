@@ -35,7 +35,7 @@ export const useGetOrCreateChat = () => {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: chatsQueryKey() });
+            queryClient.invalidateQueries({ queryKey: ["chats"] });
         },
     });
 };

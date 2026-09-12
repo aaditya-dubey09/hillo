@@ -50,6 +50,11 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         socket.on("connect", () => {
             console.log("Socket connected:", socket.id);
             set({ isConnected: true });
+
+            const currentChatId = get().currentChatId;
+            if (currentChatId) {
+                socket.emit("join-chat", currentChatId);
+            }
         });
 
         socket.on("connect_error", (error) => {
@@ -135,10 +140,13 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // Event listener for real-time sidebar/chat list updates
         socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
+            let matchFound = false;
+
             queryClient.setQueryData<Chat[]>(chatsQueryKey(userId), (oldChats) => {
                 if (!oldChats) return [];
                 const updatedChats = oldChats.map((chat) => {
                     if (chat._id === chatId) {
+                        matchFound = true;
                         return {
                             ...chat,
                             lastMessage,
@@ -151,6 +159,11 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                 // Sort chats by most recent message date
                 return updatedChats.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
             });
+
+            // if no chat matched in cache, refetch list to bring down the new chat
+            if (!matchFound) {
+                queryClient.invalidateQueries({ queryKey: ["chats"] });
+            }
         });
 
         set({ socket, queryClient });

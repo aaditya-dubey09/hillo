@@ -1,4 +1,3 @@
-// tood: send full file to gemini for review
 import { verifyToken } from "@clerk/express";
 import { Server as HttpServer } from "http";
 import mongoose, { Types } from "mongoose";
@@ -85,92 +84,105 @@ export const initializeSocket = (httpServer: HttpServer) => {
         });
 
         // send message handler
-        socket.on("send-message", 
+        socket.on("send-message",
             async (
-                data: { chatId: string; text: string }, 
+                data: { chatId: string; text: string },
                 callback?: (response: { success: boolean; error?: string }) => void
             ) => {
-            const { chatId, text } = data;
-            // Validation
-            if (!chatId || !Types.ObjectId.isValid(chatId)) {
-                const err = "Invalid chat ID";
-                socket.emit("socket-error", { message: err });
-                if (callback) callback({ success: false, error: err });
-                return;
-            }
-
-            if (typeof text !== "string" || !text.trim() || text.trim().length > 5000) {
-                const err = "Message text must be between 1 and 5000 characters";
-                socket.emit("socket-error", { message: err });
-                if (callback) callback({ success: false, error: err });
-                return;
-            }
-
-            const sanitizedText = text.trim();
-            const session = await mongoose.startSession();
-            try {
-                session.startTransaction();
-
-                const chat = await Chat.findOne({
-                    _id: chatId,
-                    participants: userId,
-                }).session(session);
-
-                if (!chat) {
-                    await session.abortTransaction();
-                    const err = "Chat not found or unauthorized";
+                // Validation
+                if (!data || typeof data !== "object") {
+                    const errorMsg = "Invalid message payload";
+                    socket.emit("socket-error", { message: errorMsg });
+                    return callback?.({
+                        success: false,
+                        error: "Invalid payload"
+                    });
+                }
+                const { chatId, text } = data;
+                // Validation
+                if (!chatId || !Types.ObjectId.isValid(chatId)) {
+                    const err = "Invalid chat ID";
                     socket.emit("socket-error", { message: err });
                     if (callback) callback({ success: false, error: err });
                     return;
                 }
 
-                const message = new Message({
-                    chat: chatId,
-                    sender: userId,
-                    text: sanitizedText,
-                });
-                await message.save({ session });
+                if (typeof text !== "string" || !text.trim() || text.trim().length > 5000) {
+                    const err = "Message text must be between 1 and 5000 characters";
+                    socket.emit("socket-error", { message: err });
+                    if (callback) callback({ success: false, error: err });
+                    return;
+                }
 
-                // Update the chat with the new message
-                chat.lastMessage = message._id;
-                chat.lastMessageAt = new Date();
-                await chat.save({ session });
+                const sanitizedText = text.trim();
+                const session = await mongoose.startSession();
+                try {
+                    session.startTransaction();
 
-                await session.commitTransaction();
+                    const chat = await Chat.findOne({
+                        _id: chatId,
+                        participants: userId,
+                    }).session(session);
 
-                // Populate sender details for clients
-                await message.populate("sender", "_id name email avatar");
+                    if (!chat) {
+                        await session.abortTransaction();
+                        const err = "Chat not found or unauthorized";
+                        socket.emit("socket-error", { message: err });
+                        if (callback) callback({ success: false, error: err });
+                        return;
+                    }
 
-                // emit to clients actively inside this specific chat room
-                io.to(`chat:${chatId}`).emit("new-message", message);
-
-                // emit to all chat participants personal rooms for sidebars/chat lists
-                for (const participantId of chat.participants) {
-                    io.to(`user:${participantId.toString()}`).emit("chat-list-update", {
-                        chatId,
-                        lastMessage: message,
-                        lastMessageAt: chat.lastMessageAt,
+                    const message = new Message({
+                        chat: chatId,
+                        sender: userId,
+                        text: sanitizedText,
                     });
-                }
+                    await message.save({ session });
 
-                // Acknowledge success back to the sender
-                if (callback) callback({ success: true });
-            } catch (error) {
-                if (session.inTransaction()) {
-                    await session.abortTransaction();
+                    // Update the chat with the new message
+                    chat.lastMessage = message._id;
+                    chat.lastMessageAt = new Date();
+                    await chat.save({ session });
+
+                    await session.commitTransaction();
+
+                    // Populate sender details for clients
+                    await message.populate("sender", "_id name email avatar");
+
+                    // emit to clients actively inside this specific chat room
+                    io.to(`chat:${chatId}`).emit("new-message", message);
+
+                    // emit to all chat participants personal rooms for sidebars/chat lists
+                    for (const participantId of chat.participants) {
+                        io.to(`user:${participantId.toString()}`).emit("chat-list-update", {
+                            chatId,
+                            lastMessage: message,
+                            lastMessageAt: chat.lastMessageAt,
+                        });
+                    }
+
+                    // Acknowledge success back to the sender
+                    if (callback) callback({ success: true });
+                } catch (error) {
+                    if (session.inTransaction()) {
+                        await session.abortTransaction();
+                    }
+                    console.error("Socket send-message error:", error);
+                    const errorMsg = "Failed to send message";
+                    socket.emit("socket-error", { message: errorMsg });
+                    if (callback) callback({ success: false, error: errorMsg });
+                } finally {
+                    session.endSession();
                 }
-                console.error("Socket send-message error:", error);
-                const errorMsg = "Failed to send message";
-                socket.emit("socket-error", { message: errorMsg });
-                if (callback) callback({ success: false, error: errorMsg });
-            } finally {
-                session.endSession();
-            }
-        });
+            });
 
         // typing indicator handler
         socket.on("typing", async (data: { chatId: string; isTyping: boolean }) => {
-            if (!data?.chatId || typeof data.isTyping !== "boolean") return;
+            if (!data || !data?.chatId || typeof data.isTyping !== "boolean") return;
+
+            // verify user is actually a participant in this chat
+            const chat = await Chat.findOne({ _id: data.chatId, participants: userId }).select("participants");
+            if (!chat) return;
             const typingPayload = {
                 userId,
                 chatId: data.chatId,

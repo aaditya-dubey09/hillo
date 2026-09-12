@@ -25,7 +25,7 @@ export function ChatInput({ value, onChange, onSubmit, disabled }: {
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
                     rows={1}
-                    className="textarea textarea-bordered w-full resize-none min-h-[2.5rem] max-h-40 rounded-xl bg-base-300/40 border-none outline-none placeholder:text-base-content/60"
+                    className="textarea w-full resize-none min-h-[2.5rem] max-h-40 rounded-xl bg-base-300/40 border-none outline-none placeholder:text-base-content/60"
                 />
                 <button
                     type="submit"

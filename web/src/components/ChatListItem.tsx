@@ -9,15 +9,15 @@ export function ChatListItem({ chat, isActive, onClick }: { chat: Chat, isActive
 
     return (
         <button
-            onClick={onClick}
-            className={`btn btn-ghost justify-start gap-3 px-4 py-8 rounded-xl w-full normal-case ${isActive ? "bg-white/10" : ""}`}
+        onClick={onClick}
+        className={`btn btn-ghost hover:bg-[#28282D] border-0 rounded-none ring-0 justify-start gap-3 px-4 py-8 w-full normal-case ${isActive ? "bg-[#28282D]" : ""}`}
         >
             <div className="relative">
                 <img
                     src={chat.participant?.avatar}
-                    className="w-11 h-11 rounded-full bg-base-300/40" />
+                    className="w-11 h-11 rounded-full bg-[#28282D]/40" />
                 {isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-base-200" />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-[#28282D]" />
                 )}
             </div>
             <div className="flex-1 text-left min-w-0">

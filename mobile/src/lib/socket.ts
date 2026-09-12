@@ -6,6 +6,7 @@ import type { Chat, Message, MessageSender } from '../types';
 import { chatsQueryKey } from "../hooks/useChats";
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
+if (!SOCKET_URL) throw new Error("EXPO_PUBLIC_API_URL is not defined in the environment variables.");
 
 interface SocketState {
     socket: Socket | null;
@@ -126,10 +127,12 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
         // Event listener for sidebar/chat list updates
         socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
+            let matchFound = false;
             queryClient.setQueryData<Chat[]>(chatsQueryKey(userId), (oldChats) => {
                 if (!oldChats) return [];
                 const updatedChats = oldChats.map((chat) => {
                     if (chat._id === chatId) {
+                        matchFound = true;
                         return {
                             ...chat,
                             lastMessage,
@@ -141,6 +144,11 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
                 return updatedChats.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
             });
+
+            // if no chat matched in cache, refetch list to bring down the new chat
+            if (!matchFound) {
+                queryClient.invalidateQueries({ queryKey: ["chats"] });
+            }
         });
 
         socket.on("typing", ({ userId, chatId, isTyping }: { userId: string; chatId: string; isTyping: boolean }) => {
