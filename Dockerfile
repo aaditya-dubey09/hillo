@@ -11,6 +11,13 @@ COPY web/ ./
 
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+# VITE_API_URL must be provided during build, otherwise throw an error
+RUN if [ -z "$VITE_API_URL" ]; then \
+        echo "Error: VITE_API_URL build argument is required!"; \
+        exit 1; \
+    fi
 RUN bun run build
 
 # install backend dependencies

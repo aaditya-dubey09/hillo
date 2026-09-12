@@ -1,7 +1,8 @@
 import { useAuth } from "@clerk/react"
 import { Navigate, Route, Routes } from 'react-router'
+import { ToastContainer } from 'react-toastify'
 import './App.css'
-import PageLoader from './components/PageLoader'
+import { PageLoader } from './components/PageLoader'
 import { useUserSync } from './hooks/useUserSync'
 import ChatPage from './pages/ChatPage'
 import HomePage from './pages/HomePage'
@@ -13,6 +14,7 @@ function App() {
   if (!isLoaded) return <PageLoader />;
 
   return (
+    <>
     <Routes>
       <Route
         path="/"
@@ -28,6 +30,8 @@ function App() {
         element={<Navigate to={isSignedIn ? "/chat" : "/"} replace />}
       />
     </Routes>
+    <ToastContainer />
+    </>
   )
 }
 

@@ -1,2 +1,7 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+* {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+}

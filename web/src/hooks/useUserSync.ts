@@ -36,5 +36,5 @@ export const useUserSync = () => {
         }
     }, [isSignedIn, userId, syncUser, isPending, isSuccess, isError]);
 
-    return { isSynced: isSuccess, isSyncing: isPending };
+    return { isSynced: isSuccess, isSyncing: isPending } as const;
 }
