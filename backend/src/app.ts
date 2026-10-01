@@ -1,12 +1,12 @@
+import { clerkMiddleware } from '@clerk/express';
+import cors from "cors";
 import express from "express";
 import path from "path";
+import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth.route";
 import chatRoutes from "./routes/chat.route";
 import messageRoutes from "./routes/message.route";
 import userRoutes from "./routes/user.route";
-import { clerkMiddleware } from '@clerk/express';
-import { errorHandler } from "./middleware/errorHandler";
-import cors from "cors";
 
 const app = express();
 
@@ -24,8 +24,12 @@ app.use(cors({
 app.use(express.json());
 app.use(clerkMiddleware());
 
+// todo: fetch this endpoint to check if the server is running before making any other requests to the server
 app.get("/health", (req, res) => {
-    res.json({ status: "ok", message: "Server is running" });
+    res.status(200).json({
+        status: 'UP',
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.use("/api/auth", authRoutes);

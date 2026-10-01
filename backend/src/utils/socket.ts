@@ -30,9 +30,8 @@ export const initializeSocket = (httpServer: HttpServer) => {
             });
             const clerkId = session.sub;
             const user = await User.findOne({ clerkId }).select("_id");
-            if (!user) {
-                return next(new Error("User not found"));
-            }
+            if (!user) return next(new Error("User not found"));
+
             socket.data.userId = user._id.toString();
             next();
         } catch (error) {
@@ -67,13 +66,25 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 return;
             }
 
-            const isParticipant = await Chat.exists({ _id: chatId, participants: userId });
-            if (!isParticipant) {
-                socket.emit("socket-error", { message: "Unauthorized or chat not found" });
-                return;
-            }
+            try {
+                const chat = await Chat.findOneAndUpdate(
+                    { _id: chatId, participants: userId },
+                    { $set: { [`unreadCounts.${userId}`]: 0 } }
+                );
 
-            socket.join(`chat:${chatId}`);
+                if (!chat) {
+                    socket.emit("socket-error", { message: "Unauthorized or chat not found" });
+                    return;
+                }
+
+                socket.join(`chat:${chatId}`);
+
+                // Notify user's socket client to update local chat list item
+                io.to(`user:${userId}`).emit("unread-reset", { chatId });
+            } catch (error) {
+                console.error("Socket join-chat error: ", error);
+                socket.emit("socket-error", { message: "Failed to join chat" });
+            }
         });
 
         // leave active chat room
@@ -91,27 +102,25 @@ export const initializeSocket = (httpServer: HttpServer) => {
             ) => {
                 // Validation
                 if (!data || typeof data !== "object") {
-                    const errorMsg = "Invalid message payload";
-                    socket.emit("socket-error", { message: errorMsg });
+                    socket.emit("socket-error", { message: "Invalid message payload" });
                     return callback?.({
                         success: false,
                         error: "Invalid payload"
                     });
                 }
                 const { chatId, text } = data;
+
                 // Validation
                 if (!chatId || !Types.ObjectId.isValid(chatId)) {
                     const err = "Invalid chat ID";
                     socket.emit("socket-error", { message: err });
-                    if (callback) callback({ success: false, error: err });
-                    return;
+                    return callback?.({ success: false, error: err });
                 }
 
                 if (typeof text !== "string" || !text.trim() || text.trim().length > 5000) {
                     const err = "Message text must be between 1 and 5000 characters";
                     socket.emit("socket-error", { message: err });
-                    if (callback) callback({ success: false, error: err });
-                    return;
+                    return callback?.({ success: false, error: err });
                 }
 
                 const sanitizedText = text.trim();
@@ -128,8 +137,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
                         await session.abortTransaction();
                         const err = "Chat not found or unauthorized";
                         socket.emit("socket-error", { message: err });
-                        if (callback) callback({ success: false, error: err });
-                        return;
+                        return callback?.({ success: false, error: err });
                     }
 
                     const message = new Message({
@@ -139,30 +147,72 @@ export const initializeSocket = (httpServer: HttpServer) => {
                     });
                     await message.save({ session });
 
-                    // Update the chat with the new message
-                    chat.lastMessage = message._id;
-                    chat.lastMessageAt = new Date();
-                    await chat.save({ session });
+                    // get the set of all socket Id currently inside this active chat room
+                    const activeChatRoomSockets = io.sockets.adapter.rooms.get(`chat:${chatId}`) || new Set();
+
+                    // Increment unread count for participants EXCEPT sender
+                    const updateQuery: Record<string, number> = {};
+                    chat.participants.forEach((pId) => {
+                        const pStr = pId.toString();
+
+                        // skip sender
+                        if (pStr === userId) return;
+
+                        // check if recipient has any connected socket currently active inside this chat room
+                        const recipientSocketIds = onlineUsers.get(pStr) || new Set();
+                        const isRecipientViewingChat = Array.from(recipientSocketIds).some((sId) => activeChatRoomSockets.has(sId));
+
+                        if (!isRecipientViewingChat) {
+                            updateQuery[`unreadCounts.${pStr}`] = 1;
+                        }
+                    });
+
+                    // Build update query safely without empty $inc
+                    const updatePayload: Record<string, any> = {
+                        $set: {
+                            lastMessage: message._id,
+                            lastMessageAt: new Date(),
+                        },
+                    };
+
+                    if (Object.keys(updateQuery).length > 0) {
+                        updatePayload.$inc = updateQuery;
+                    }
+
+                    // Update lastMessage and unreadCounts atomically
+                    await Chat.findByIdAndUpdate(chatId, updatePayload, { session });
 
                     await session.commitTransaction();
 
-                    // Populate sender details for clients
-                    await message.populate("sender", "_id name email avatar");
-
-                    // emit to clients actively inside this specific chat room
-                    io.to(`chat:${chatId}`).emit("new-message", message);
-
-                    // emit to all chat participants personal rooms for sidebars/chat lists
-                    for (const participantId of chat.participants) {
-                        io.to(`user:${participantId.toString()}`).emit("chat-list-update", {
-                            chatId,
-                            lastMessage: message,
-                            lastMessageAt: chat.lastMessageAt,
-                        });
-                    }
-
-                    // Acknowledge success back to the sender
+                    // Acknowledge success to client immediately after transaction commit
                     if (callback) callback({ success: true });
+
+                    // Post-commit tasks: populate message, emit sockets, and notify participants
+                    try {
+                        // Populate sender details for clients
+                        await message.populate("sender", "_id name email avatar");
+
+                        // emit to active chat viewers
+                        io.to(`chat:${chatId}`).emit("new-message", message);
+
+                        // fetch updated chat doc to retrieve new unreadCounts
+                        const updatedChat = await Chat.findById(chatId);
+
+                        // Notify each participant's room with updated unread counts
+                        for (const participantId of chat.participants) {
+                            const pStr = participantId.toString();
+                            const unreadCount = updatedChat?.unreadCounts?.get(pStr) || 0;
+
+                            io.to(`user:${participantId.toString()}`).emit("chat-list-update", {
+                                chatId,
+                                lastMessage: message,
+                                lastMessageAt: updatedChat?.lastMessageAt || new Date(),
+                                unreadCount: pStr === userId ? 0 : unreadCount,
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Error broadcasting message post-commit:", error);
+                    }
                 } catch (error) {
                     if (session.inTransaction()) {
                         await session.abortTransaction();
@@ -202,13 +252,10 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
             // also emit to other participant's personal room (for chat list status)
             try {
-                const chat = await Chat.findById(data.chatId).select("participants");
-                if (chat) {
-                    // Find the other participant (not the current user)
-                    const otherParticipantId = chat.participants.filter((p) => p.toString() !== userId);
-                    for (const participantId of otherParticipantId) {
-                        socket.to(`user:${participantId.toString()}`).emit("typing", typingPayload);
-                    }
+                // Find the other participant (not the current user)
+                const otherParticipantId = chat.participants.filter((p) => p.toString() !== userId);
+                for (const participantId of otherParticipantId) {
+                    socket.to(`user:${participantId.toString()}`).emit("typing", typingPayload);
                 }
             } catch (error) {
                 console.error("Error handling typing indicator:", error);

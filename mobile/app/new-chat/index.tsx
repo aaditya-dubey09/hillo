@@ -1,20 +1,21 @@
 import UserItem from '@/src/components/UserItem';
-import { useGetOrCreateChat } from '@/src/hooks/useChats';
+import { useStartChat } from '@/src/hooks/useStartChat';
 import { useUsers } from '@/src/hooks/useUsers';
-import { User } from '@/src/types';
+import { useSocketStore } from '@/src/lib/socket';
+import type { User } from '@/src/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSocketStore } from '@/src/lib/socket';
 
 const NewChatScreen = () => {
     const [searchQuery, setSearchQuery] = useState("");
+    const [isFocused, setIsFocused] = useState(false);
     const router = useRouter();
 
     const { data: allUsers, isLoading, isError, error, refetch } = useUsers();
-    const { mutate: getOrCreateChat, isPending: isCreatingChat, isError: isChatError, error: chatError } = useGetOrCreateChat();
+    const { openChat, isCreatingChat, isChatError, chatError } = useStartChat();
     const { onlineUsers } = useSocketStore();
 
     // client-side filtering
@@ -25,26 +26,7 @@ const NewChatScreen = () => {
     });
 
     const handleUserSelect = (user: User) => {
-        getOrCreateChat(user._id, {
-            onSuccess: (chat) => {
-                const participant = chat.participant ?? user;
-                router.dismiss(); // Dismiss the modal before navigating to the chat screen
-                requestAnimationFrame(() => {
-                    router.push({
-                        pathname: '/chat/[id]',
-                        params: {
-                            id: chat._id,
-                            participantId: participant._id,
-                            name: participant.name,
-                            avatar: participant.avatar,
-                        },
-                    });
-                });
-            },
-            onError: (error) => {
-                console.error("Error creating chat:", error);
-            },
-        });
+        openChat({ user }, () => router.dismiss());
     };
 
     return (
@@ -69,23 +51,28 @@ const NewChatScreen = () => {
                     </View>
 
                     {/* Search bar */}
-                    <View className="px-5 pt-3 pb-2 bg-surface gap-2">
-                        <View className="flex-row items-center bg-surface-card rounded-full px-3 py-1.5 gap-2 border border-surface-light">
-                            <Ionicons name="search" size={18} color="#6B6B70" />
+                    <View className="relative mb-4 px-4 pt-3 pb-2">
+                        <View className="flex-row items-center bg-surface-card rounded-full px-3 py-0.5 border border-surface-light w-full">
+                            {!isFocused && (
+                                <Ionicons name="search" size={18} color="#6B6B70" />
+                            )}
                             <TextInput
-                                placeholder="Search users"
+                                placeholder="Search users by name or email..."
                                 placeholderTextColor="#6B6B70"
-                                className="flex-1 text-foreground text-sm"
+                                className="text-foreground text-sm bg-transparent flex-1 border-none placeholder:text-[#888] outline-none ring-0"
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
                                 autoCapitalize="none"
+                                autoFocus={true}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
                             />
                         </View>
 
                         {/* Error state for chat creation - below search bar */}
                         {isChatError && (
-                            <View className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                                <Text className="text-red-400 text-xs text-center">
+                            <View className="px-3 pt-4">
+                                <Text className="text-red-400 text-xs">
                                     {chatError?.message || "Failed to initiate chat. Please try again."}
                                 </Text>
                             </View>
@@ -120,7 +107,7 @@ const NewChatScreen = () => {
                             </View>
                         ) : (
                             <ScrollView
-                                className="flex-1 px-5 pt-4"
+                                className="flex-1 px-5"
                                 showsVerticalScrollIndicator={false}
                                 contentContainerStyle={{ paddingBottom: 24 }}
                                 keyboardShouldPersistTaps="handled"

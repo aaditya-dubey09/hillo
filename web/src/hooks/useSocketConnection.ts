@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSocketStore } from '../lib/socket';
 
 export const useSocketConnection = (activeChatId: string | null) => {
@@ -8,23 +8,25 @@ export const useSocketConnection = (activeChatId: string | null) => {
     const queryClient = useQueryClient();
     const { socket, connect, disconnect, joinChat, leaveChat } = useSocketStore();
 
-    // connect socket on mount
+    // connect socket on mount and handle disconnect/reconnect on user switch
     useEffect(() => {
-        let disposed = false;
+        let isMounted = true;
+
         if (isSignedIn && userId) {
             getToken().then((token) => {
-                if (!disposed && token) connect(token, queryClient, userId);
+                if (isMounted && token) {
+                    connect(getToken, queryClient, userId);
+                }
             });
         } else {
-            disposed = true;
             disconnect();
         }
 
         return () => {
-            disposed = true;
+            isMounted = false;
             disconnect();
         };
-    }, [isSignedIn, userId, connect, disconnect, getToken, queryClient]);
+    }, [isSignedIn, userId, connect, disconnect, queryClient, getToken]);
 
     // join/leave chat rooms
     useEffect(() => {
@@ -34,5 +36,5 @@ export const useSocketConnection = (activeChatId: string | null) => {
         }
     }, [activeChatId, socket, joinChat, leaveChat]);
 
-    return null
-}
+    return null;
+};

@@ -34,5 +34,6 @@ export interface Chat {
     participants: MessageSender[];
     lastMessage?: ChatLastMessage | null; // Nullable for newly created chats without messages
     lastMessageAt: string;
+    unreadCount?: number;
     createdAt: string;
 }

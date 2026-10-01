@@ -3,7 +3,6 @@ import { useAuth, useUser } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
 import { isAxiosError } from "axios";
 import { useEffect, useRef } from "react";
-import { useSocketStore } from "../lib/socket";
 
 const AuthSync = () => {
     const { isSignedIn } = useAuth();
@@ -11,14 +10,12 @@ const AuthSync = () => {
     const { mutate: syncUser, status, reset } = useAuthCallback();
     const wasSignedIn = useRef(false); // ref to know if we need to clear state on sign-out
 
-    const {} = useSocketStore(); // todo: check this out
-
     useEffect(() => {
         if (isSignedIn && user && status === "idle") {
             wasSignedIn.current = true;
+
             syncUser(undefined, {
-                onSuccess: (data) => {
-                    console.log("User synced successfully");
+                onSuccess: () => {
                     Sentry.captureMessage("User synced with backend", {
                         level: "info",
                         tags: { userId: user.id },
@@ -26,7 +23,6 @@ const AuthSync = () => {
                 },
                 onError: (error) => {
                     console.error("Error syncing user:", error);
-                    
                     let errorMessage = "User sync failed";
                     let statusCode = "unknown";
 
@@ -36,6 +32,7 @@ const AuthSync = () => {
                     } else if (error instanceof Error) {
                         errorMessage = error.message;
                     }
+
                     Sentry.captureException(new Error(errorMessage), {
                         level: "error",
                         tags: { 

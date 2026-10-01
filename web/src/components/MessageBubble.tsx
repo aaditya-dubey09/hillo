@@ -7,12 +7,12 @@ export function MessageBubble({ message, currentUser }: { message: Message; curr
 
     return (
         <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-md px-2 py-2 rounded-b-xl ${isMe
-                ? "bg-linear-to-r from-amber-500 to-orange-500 text-primary-content rounded-l-xl"
-                : "bg-base-300/40 text-base-content rounded-r-xl"}`}
+            <div className={`max-w-md px-2 py-2 rounded-b-2xl ${isMe
+                ? "bg-[#f4a361] text-[#0D0D0F] rounded-l-2xl"
+                : "bg-base-300/40 text-base-content rounded-r-2xl border border-white/5"}`}
             >
                 <p className="text-sm">{message.text}</p>
-                <div className={`text-[10px] text-right mt-1 ${isMe ? "text-primary-content/80" : "text-base-content/70"}`}>
+                <div className={`text-[10px] text-right mt-1 ${isMe ? "text-[#0D0D0F]/80" : "text-base-content/70"}`}>
                     <span className={`${isMe ? "inline-flex gap-1" : ""}`}>{time}
                     {isMe &&
                         <CheckCheck size={14} className="opacity-70" />

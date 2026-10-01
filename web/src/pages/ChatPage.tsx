@@ -1,6 +1,6 @@
 import type { Chat, Message } from "@/types";
 import { useClerk, UserButton } from "@clerk/react";
-import { EllipsisVerticalIcon, LogOutIcon, MessageSquareIcon, MessageSquareText, PhoneCall, PlusIcon, SearchIcon, Settings, SparklesIcon, UserPlus, VideoIcon } from "lucide-react";
+import { EllipsisVerticalIcon, LogOutIcon, MessageSquareIcon, MessageSquareText, PhoneCall, SearchIcon, Settings, UserPlus, VideoIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ChatHeader } from "../components/ChatHeader";
@@ -14,6 +14,9 @@ import { useMessages } from "../hooks/useMessages";
 import { useSocketConnection } from "../hooks/useSocketConnection";
 import { useSocketStore } from "../lib/socket";
 import { groupMessagesByDate } from "../lib/utils";
+import { useUsers } from "@/hooks/useUsers";
+
+type FilterType = "All" | "Unread" | "New";
 
 const ChatPage = () => {
     const { data: currentUser } = useCurrentUser();
@@ -22,12 +25,17 @@ const ChatPage = () => {
 
     const [messageInput, setMessageInput] = useState("");
     const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    // Search and filter state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeFilter, setActiveFilter] = useState<FilterType>("All");
 
     // Explicitly type ref elements and timeouts
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const { socket, sendTyping, sendMessage } = useSocketStore();
+    const { socket, sendTyping, sendMessage } = useSocketStore(); // todo: fix: unreadChats now comes in chat response, so we don't need to destructure here from socket store anymore
 
     useSocketConnection(activeChatId);
 
@@ -88,30 +96,56 @@ const ChatPage = () => {
 
     const activeChat = chats.find((c) => c._id === activeChatId);
 
-    const SignOutHandler = () => {
-        if (window.confirm("Are you sure you want to sign out?")) {
-            signOut({ redirectUrl: "/" });
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+            await signOut();
+        } catch (error) {
+            console.error("Failed to sign out:", error);
+        } finally {
+            setIsLoggingOut(false);
+            setIsLogoutModalOpen(false);
         }
-    }
+    };
+
+    // filter and search Logic
+    const filteredChats = useMemo(() => {
+        return chats.filter((chat) => {
+            const name = chat.participant?.name?.toLowerCase() || "Unknown";
+            const email = chat.participant?.email?.toLowerCase() || "Unknown";
+            const query = searchQuery.trim().toLowerCase();
+
+            // search query match
+            const matchesSearch = !query || name.includes(query) || email.includes(query);
+
+            // filter ab match
+            let matchesFilter = true;
+            if (activeFilter === "Unread") {
+                matchesFilter = (chat?.unreadCount ?? 0) > 0;
+            } else if (activeFilter === "New") {
+                // ex - chats created within the last 24 hours
+                const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+                matchesFilter = new Date(chat.createdAt || 0).getTime() > dayAgo;
+            }
+
+            return matchesSearch && matchesFilter;
+        });
+    }, [chats, searchQuery, activeFilter]);
 
     return (
         <div className="h-screen bg-[#28282D] text-base-content flex">
             <div className="w-10 flex flex-col items-center justify-between border-r border-[#28282D] p-2">
                 <div className="flex flex-col items-center gap-4 mt-3">
                     <MessageSquareText className="cursor-pointer text-white" />
-                    <button onClick={() => console.log("Phone call clicked")}>
-                        <PhoneCall className="cursor-pointer text-[#888]" />
-                    </button>
-                    <button onClick={() => console.log("Video call clicked")}>
-                        <VideoIcon className="cursor-pointer text-[#888]" />
-                    </button>
+                    <PhoneCall className="cursor-pointer text-[#888] active:text-white" />
+                    <VideoIcon className="cursor-pointer text-[#888] active:text-white" />
                 </div>
                 <div className="flex flex-col items-center gap-4">
                     <UserButton />
-                    <button onClick={() => console.log("Settings clicked")}>
+                    <button onClick={() => console.log("Settings clicked")} title="Settings">
                         <Settings className="cursor-pointer text-[#888]" />
                     </button>
-                    <button onClick={() => SignOutHandler()}>
+                    <button onClick={() => setIsLogoutModalOpen(true)} title="Logout">
                         <LogOutIcon className="cursor-pointer text-[#888]" />
                     </button>
                 </div>
@@ -134,18 +168,27 @@ const ChatPage = () => {
                             <EllipsisVerticalIcon className="size-5 cursor-pointer" />
                         </div>
                     </div>
-                    <div className="inline-flex items-center gap-2 bg-transparent border border-[#888] rounded-full px-3 py-1 w-full">
+                    {/* sidebar search */}
+                    <div className="inline-flex items-center gap-2 bg-base-300/60 border-none rounded-full px-3 py-2 w-full">
                         <input
-                            className="peer bg-transparent border-none placeholder:text-[#888] outline-none ring-0 order-last w-full"
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="peer bg-transparent border-none placeholder:text-white/30 placeholder:pointer-events-none focus:placeholder:text-transparent placeholder:transition-colors placeholder:select-none outline-none ring-0 order-last w-full"
                             placeholder="Search..."
                         />
-                        <SearchIcon className="peer-focus:hidden order-first size-5 text-[#888]" />
+                        <SearchIcon className="peer-focus:hidden order-first size-5 text-white/30 pointer-events-none select-none transition" />
                     </div>
+                    {/* filters */}
                     <div className="flex items-center gap-2 mt-4">
-                        {["All", "Unread", "Groups", "New"].map((filter) => (
+                        {(["All", "Unread", "New"] as FilterType[]).map((filter) => (
                             <button
                                 key={filter}
-                                className={`${filter === 'All' ? 'bg-[#38383D] text-base-content' : 'bg-[#28282D] text-base-content/50'} text-xs bg-[#28282D] rounded-full py-0.5 px-2 transition-colors cursor-pointer`}
+                                onClick={() => setActiveFilter(filter)}
+                                className={`${activeFilter === filter
+                                        ? "bg-[#38383D] text-base-content"
+                                        : "bg-[#28282D] text-base-content/50"
+                                    } text-xs rounded-full py-0.5 px-2 transition-colors cursor-pointer`}
                             >
                                 <span>{filter}</span>
                             </button>
@@ -161,10 +204,12 @@ const ChatPage = () => {
                         </div>
                     )}
 
+                    {/* no conversations */}
                     {chats.length === 0 && !chatsLoading && <NoConversationsUI />}
 
+                    {/* chat list item */}
                     <div className="flex flex-col gap-1">
-                        {chats.map((chat) => (
+                        {filteredChats.map((chat) => (
                             <ChatListItem
                                 key={chat._id}
                                 chat={chat}
@@ -198,7 +243,7 @@ const ChatPage = () => {
                             {messages.length > 0 && (
                                 Object.entries(groupedMsgs).flatMap(([dateHeader, messagesInGroup]) => [
                                     <div key={`header-${dateHeader}`} className="flex justify-center my-4 w-full">
-                                        <span className="bg-base-300 text-base-content/70 text-xs px-3 py-1 rounded-lg font-medium shadow-sm">
+                                        <span className="bg-base-300 text-base-content/70 text-xs px-3 py-1 rounded-lg font-medium shadow-sm pointer-events-none select-none">
                                             {dateHeader}
                                         </span>
                                     </div>,
@@ -228,12 +273,19 @@ const ChatPage = () => {
                 isOpen={isNewChatModalOpen}
                 onClose={() => setIsNewChatModalOpen(false)}
             />
+            <LogOutModal
+                isLogoutModalOpen={isLogoutModalOpen}
+                setIsLogoutModalOpen={setIsLogoutModalOpen}
+                handleLogout={handleLogout}
+                isLoggingOut={isLoggingOut}
+            />
         </div >
     );
 };
 
 export default ChatPage;
 
+// Helper UI Components
 function NoConversationsUI() {
     return (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -268,4 +320,86 @@ function NoChatsSelectedUI() {
             </p>
         </div>
     )
+}
+
+// todo: check if it looks and work fine on ui
+function LogOutModal({
+    isLogoutModalOpen,
+    setIsLogoutModalOpen,
+    handleLogout,
+    isLoggingOut = false,
+}: {
+    isLogoutModalOpen: boolean;
+    setIsLogoutModalOpen: (open: boolean) => void;
+    handleLogout: () => void;
+    isLoggingOut?: boolean;
+}) {
+    const dialogRef = useRef<HTMLDialogElement | null>(null);
+
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+
+        if (isLogoutModalOpen) {
+            if (!dialog.open) {
+                dialog.showModal();
+            }
+        } else {
+            if (dialog.open) {
+                dialog.close();
+            }
+        }
+    }, [isLogoutModalOpen]);
+
+    return (
+        <dialog
+            ref={dialogRef}
+            onCancel={(e) => {
+                e.preventDefault();
+                setIsLogoutModalOpen(false);
+            }}
+            onClose={() => setIsLogoutModalOpen(false)}
+            className="modal backdrop-blur-xs"
+        >
+            <div className="modal-box bg-[#212126] px-0 rounded-3xl">
+                <div className="flex items-center justify-between border-b border-[#16161a] w-full px-4 pb-3 mb-2">
+                    <h3 className="font-semibold text-white">Confirm Logout</h3>
+                </div>
+
+                <p className="px-4 py-2 text-sm text-base-content/70">
+                    Are you sure you want to log out of your account?
+                </p>
+
+                <div className="modal-action px-4 pt-2 gap-2">
+                    <button
+                        type="button"
+                        disabled={isLoggingOut}
+                        className="btn btn-ghost btn-sm border-0 text-base-content/70 rounded-xl"
+                        onClick={() => setIsLogoutModalOpen(false)}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isLoggingOut}
+                        className="btn btn-error btn-sm border-0 rounded-xl"
+                        onClick={handleLogout}
+                    >
+                        {isLoggingOut ? (
+                            <span className="loading loading-spinner loading-xs" />
+                        ) : (
+                            "Logout"
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Backdrop click handler */}
+            <form method="dialog" className="modal-backdrop">
+                <button type="submit" onClick={() => setIsLogoutModalOpen(false)}>
+                    close
+                </button>
+            </form>
+        </dialog>
+    );
 }
