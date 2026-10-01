@@ -2,8 +2,8 @@ import * as Sentry from "@sentry/react-native";
 import type { QueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
-import type { Chat, Message, MessageSender } from '../types';
 import { chatsQueryKey } from "../hooks/useChats";
+import type { Chat, Message } from '../types';
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
 if (!SOCKET_URL) throw new Error("EXPO_PUBLIC_API_URL is not defined in the environment variables.");
@@ -13,11 +13,10 @@ interface SocketState {
     isConnected: boolean;
     onlineUsers: Set<string>;
     typingUsers: Map<string, string>;
-    unreadChats: Set<string>;
     currentChatId: string | null;
     queryClient: QueryClient | null;
 
-    connect: (token: string, queryClient: QueryClient, userId?: string) => void;
+    connect: (getToken: () => Promise<string | null>, queryClient: QueryClient, userId?: string) => void;
     disconnect: () => void;
     joinChat: (chatId: string) => void;
     leaveChat: (chatId: string) => void;
@@ -30,38 +29,73 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     isConnected: false,
     onlineUsers: new Set(),
     typingUsers: new Map(),
-    unreadChats: new Set(),
     currentChatId: null,
     queryClient: null,
 
-    connect: (token, queryClient, userId) => {
+    connect: (getToken, queryClient, userId) => {
         const existingSocket = get().socket;
         if (existingSocket?.connected) return;
         if (existingSocket) {
-            existingSocket.removeAllListeners();
-            existingSocket.disconnect();
+            if (!existingSocket.active) {
+                existingSocket.connect();
+            }
+            return;
         }
 
         const socket = io(SOCKET_URL, {
-            auth: { token },
+            auth: async (cb) => {
+                try {
+                    const freshToken = await getToken();
+                    cb({ token: freshToken });
+                } catch (err) {
+                    console.error("Failed to fetch fresh token for socket auth: ", err);
+                    cb({ token: null });
+                }
+            },
+            autoConnect: false,
+            timeout: 10000, // waiting for server cold start (~30-45s) will hang the socket connection, so we need a shorter timeout rather than the default 20s or 45s used earlier
             reconnection: true,
-            reconnectionAttempts: 5,
-            timeout: 10000,
+            reconnectionAttempts: 15,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 10000,
+            randomizationFactor: 0.5, // Adds randomness so multiple clients don't DDOS the server
         });
         socket.on("connect", () => {
-            console.log("Socket connected:", socket.id);
             Sentry.logger.info("Socket connected", { socketId: socket.id });
             set({ isConnected: true });
+
+            // re-join active chat on reconnect
+            const currentChatId = get().currentChatId;
+            if (currentChatId) {
+                socket.emit("join-chat", currentChatId);
+            }
+        });
+
+        socket.on("connect_error", (error: Error) => {
+            console.error("Socket connection error:", error.message);
+            Sentry.logger.error("Socket connection error occurred", {
+                message: error.message,
+            });
+
+            // Stop retrying if token is rejected (invalid or expired)
+            if (error.message.toLowerCase().includes("auth") || error.message.toLowerCase().includes("jwt")) {
+                set({ isConnected: false });
+            }
+        });
+
+        socket.on("socket-error", (error: { message: string }) => {
+            console.error("Socket error:", error.message);
+            Sentry.logger.error("Socket error occured", {
+                message: error.message,
+            });
         });
 
         socket.on("disconnect", () => {
-            console.log("Socket disconnected", socket.id);
             Sentry.logger.info("Socket disconnected", { socketId: socket.id });
             set({ isConnected: false });
         });
 
         socket.on("online-users", ({ userIds }: { userIds: string[] }) => {
-            console.log("Received online users:", userIds);
             set({ onlineUsers: new Set(userIds) });
         });
 
@@ -79,16 +113,26 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
         });
 
-        socket.on("socket-error", (error: { message: string }) => {
-            console.error("Socket error:", error.message);
-            Sentry.logger.error("Socket error occured", {
-                message: error.message,
+        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string; chatId: string; isTyping: boolean }) => {
+            set((state) => {
+                const typingUsers = new Map(state.typingUsers);
+                if (isTyping) typingUsers.set(chatId, userId);
+                else typingUsers.delete(chatId);
+
+                return { typingUsers };
             });
         });
 
+        // clear local unread count when join-chat succeeds
+        socket.on("unread-reset", ({ chatId }: { chatId: string }) => {
+            queryClient.setQueryData<Chat[]>(chatsQueryKey(userId), (oldChats) => {
+                if (!oldChats) return [];
+                return oldChats.map((c) => c._id === chatId ? { ...c, unreadCount: 0 } : c
+                );
+            })
+        })
+
         socket.on("new-message", (message: Message) => {
-            const senderObject = message.sender as MessageSender;
-            const { currentChatId } = get();
 
             // add message to the chat's message list, replacing optimistic messages
             queryClient.setQueryData<Message[]>(["messages", message.chat], (old) => {
@@ -106,17 +150,6 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                 return [...old, message];
             });
 
-            // mark as unread if not currently viewing this chat and message is from other user
-            if (currentChatId !== message.chat) {
-                const chats = queryClient.getQueryData<Chat[]>(chatsQueryKey(userId));
-                const chat = chats?.find((c) => c._id === message.chat);
-                if (chat?.participant && senderObject._id === chat.participant._id) {
-                    set((state) => ({
-                        unreadChats: new Set([...state.unreadChats, message.chat]),
-                    }));
-                }
-            }
-
             // clear typing indicator when message received
             set((state) => {
                 const typingUsers = new Map(state.typingUsers);
@@ -125,9 +158,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             });
         });
 
-        // Event listener for sidebar/chat list updates
-        socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt }: { chatId: string; lastMessage: Message; lastMessageAt: string }) => {
+        // real-time sidebar update feeding directly into tanstack query
+        socket.on("chat-list-update", ({ chatId, lastMessage, lastMessageAt, unreadCount }: {
+            chatId: string;
+            lastMessage: Message;
+            lastMessageAt: string;
+            unreadCount?: number;
+        }) => {
             let matchFound = false;
+
             queryClient.setQueryData<Chat[]>(chatsQueryKey(userId), (oldChats) => {
                 if (!oldChats) return [];
                 const updatedChats = oldChats.map((chat) => {
@@ -137,11 +176,13 @@ export const useSocketStore = create<SocketState>((set, get) => ({
                             ...chat,
                             lastMessage,
                             lastMessageAt,
+                            unreadCount: unreadCount ?? chat.unreadCount ?? 0,
                         };
                     }
                     return chat;
                 });
 
+                // Sort chats by most recent message date
                 return updatedChats.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
             });
 
@@ -151,30 +192,20 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             }
         });
 
-        socket.on("typing", ({ userId, chatId, isTyping }: { userId: string; chatId: string; isTyping: boolean }) => {
-            set((state) => {
-                const typingUsers = new Map(state.typingUsers);
-                if (isTyping) typingUsers.set(chatId, userId);
-                else typingUsers.delete(chatId);
-
-                return { typingUsers };
-            });
-        });
-
         set({ socket, queryClient });
+        socket.connect();
     },
 
     disconnect: () => {
         const socket = get().socket;
         if (socket) {
-            socket.removeAllListeners(); // Remove all event listeners to prevent memory leaks
+            socket.removeAllListeners();
             socket.disconnect();
             set({
                 socket: null,
                 isConnected: false,
                 onlineUsers: new Set(),
                 typingUsers: new Map(),
-                unreadChats: new Set(),
                 currentChatId: null,
                 queryClient: null,
             });
@@ -183,12 +214,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
     joinChat: (chatId) => {
         const socket = get().socket;
-        set((state) => {
-            const unreadChats = new Set(state.unreadChats);
-            unreadChats.delete(chatId);
-            return { currentChatId: chatId, unreadChats };
-        });
-
+        set({ currentChatId: chatId });
         if (socket?.connected) {
             socket.emit("join-chat", chatId);
         }

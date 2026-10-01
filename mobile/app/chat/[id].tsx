@@ -10,6 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { groupMessagesByDate } from "@/src/lib/utils";
 
 type ChatParams = {
     id: string;
@@ -99,14 +100,22 @@ const ChatDetailScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-surface" edges={["top", "bottom"]}>
+        <SafeAreaView className="flex-1 bg-[#212126]" edges={["top", "bottom"]}>
             {/* Header */}
-            <View className="flex-row items-center px-4 py-2 bg-surface border-b border-surface-light">
+            <View className="flex-row items-center px-4 py-2 bg-[#212126] border-b border-[#212126]">
                 <Pressable onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color="#F4A261" />
+                    <Ionicons name="chevron-back" size={24} color="#A0A0A5" />
                 </Pressable>
                 <View className="flex-row items-center flex-1 ml-2">
-                    {avatar && <Image source={avatar} style={{ width: 40, height: 40, borderRadius: 999 }} />}
+                    <View className="relative">
+                        {avatar && <Image
+                            source={avatar}
+                            style={{ width: 40, height: 40, borderRadius: 999 }}
+                        />}
+                        {isOnline && (
+                            <View className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#212126]" />
+                        )}
+                    </View>
                     <View className="ml-3">
                         <Text
                             className="text-foreground font-semibold text-base"
@@ -156,12 +165,19 @@ const ChatDetailScreen = () => {
                                 scrollViewRef.current?.scrollToEnd({ animated: false })
                             }}
                         >
-                            {messages.map((message) => {
-                                const senderId = (message.sender as MessageSender)._id;
-                                const isFromMe = currentUser ? senderId === currentUser._id : false;
+                            {Object.entries(groupMessagesByDate(messages)).flatMap(([date, dateMessages]) => [
+                                <View key={`header-${date}`} className="flex justify-center items-center my-4 w-full">
+                                    <Text className="bg-surface-card text-foreground/50 text-xs px-3 py-1 rounded-lg font-medium shadow-sm">
+                                        {date}
+                                    </Text>
+                                </View>,
+                                dateMessages.map((message) => {
+                                    const senderId = (message.sender as MessageSender)._id;
+                                    const isFromMe = currentUser ? senderId === currentUser._id : false;
 
-                                return <MessageBubble key={message._id} message={message} isFromMe={isFromMe} />
-                            })}
+                                    return <MessageBubble key={message._id} message={message} isFromMe={isFromMe} />
+                                })
+                            ])}
                         </ScrollView>
                     )}
 
@@ -188,17 +204,17 @@ const ChatDetailScreen = () => {
                                 <Ionicons name="attach" size={22} color="#6B6B70" />
                             </Pressable>
                         </View>
-                            <Pressable
-                                className="w-10 h-10 rounded-full items-center justify-center bg-primary"
-                                onPress={handleSend}
-                                disabled={!messageText.trim() || isSending}
-                            >
-                                {isSending ? (
-                                    <ActivityIndicator size="small" color="#0D0D0F" />
-                                ) : (
-                                    <Ionicons name="send" size={16} color="#0D0D0F" />
-                                )}
-                            </Pressable>
+                        <Pressable
+                            className="w-10 h-10 rounded-full items-center justify-center bg-primary"
+                            onPress={handleSend}
+                            disabled={!messageText.trim() || isSending}
+                        >
+                            {isSending ? (
+                                <ActivityIndicator size="small" color="#0D0D0F" />
+                            ) : (
+                                <Ionicons name="send" size={16} color="#0D0D0F" />
+                            )}
+                        </Pressable>
                     </View>
                 </View>
             </KeyboardAvoidingView>

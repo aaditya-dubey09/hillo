@@ -4,6 +4,7 @@ export interface IChat extends Document {
     participants: mongoose.Types.ObjectId[];
     lastMessage?: mongoose.Types.ObjectId;
     lastMessageAt?: Date;
+    unreadCounts?: Map<string, number>; // Map of userId -> count
     createdAt: Date;
     updatedAt: Date;
 }
@@ -22,6 +23,11 @@ const ChatSchema = new Schema<IChat>({
     lastMessageAt: {
         type: Date,
         default: Date.now,
+    },
+    unreadCounts: {
+        type: Map,
+        of: Number,
+        default: {}
     }
 }, { timestamps: true });
 

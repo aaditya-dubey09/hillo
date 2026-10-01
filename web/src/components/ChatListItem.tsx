@@ -6,11 +6,13 @@ export function ChatListItem({ chat, isActive, onClick }: { chat: Chat, isActive
     const { onlineUsers, typingUsers } = useSocketStore();
     const isOnline = onlineUsers.has(chat.participant?._id ?? "");
     const isTyping = !!typingUsers.get(chat._id);
+    const unreadCount = chat.unreadCount ?? 0;
+    const hasUnread = unreadCount > 0;
 
     return (
         <button
-        onClick={onClick}
-        className={`btn btn-ghost hover:bg-[#28282D] border-0 rounded-none ring-0 justify-start gap-3 px-4 py-8 w-full normal-case ${isActive ? "bg-[#28282D]" : ""}`}
+            onClick={onClick}
+            className={`btn btn-ghost hover:bg-[#28282D] border-0 rounded-none ring-0 justify-start gap-3 px-4 py-8 w-full normal-case ${isActive ? "bg-[#28282D]" : ""}`}
         >
             <div className="relative">
                 <img
@@ -22,14 +24,21 @@ export function ChatListItem({ chat, isActive, onClick }: { chat: Chat, isActive
             </div>
             <div className="flex-1 text-left min-w-0">
                 <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm truncate">
+                    <span className={`text-sm truncate font-medium ${hasUnread ? "text-[#F4A261]" : "text-white"}`} >
                         {chat.participant?.name || "Unknown"}
                     </span>
-                    {chat.lastMessageAt && (
-                        <span className="text-xs text-base-content/60">{formatTime(chat.lastMessageAt)}</span>
-                    )}
+                    <div className="flex flex-col items-end gap-1 min-w-fit">
+                        <span className="text-xs text-base-content/60 whitespace-nowrap">
+                            {chat.lastMessageAt && formatTime(chat.lastMessageAt)}
+                        </span>
+                        {hasUnread && (
+                            <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-[#F4A261] px-1.5 text-[10px] font-semibold leading-none text-[#212126]">
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <p className="text-xs text-base-content/70 truncate mt-0.5">
+                <p className={`text-xs truncate mt-0.5 ${isTyping ? "text-[#F4A261]" : "text-base-content/70"}`}>
                     {isTyping ? "typing..." : chat.lastMessage?.text || "No messages yet"}
                 </p>
             </div>

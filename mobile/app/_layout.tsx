@@ -70,6 +70,9 @@ export default Sentry.wrap(function RootLayout() {
                 gestureEnabled: true
 
               }} />
+            <Stack.Screen
+              name="search"
+              options={{ animation: "fade_from_bottom", }} />
           </Stack>
         </QueryClientProvider>
       </ClerkProvider>

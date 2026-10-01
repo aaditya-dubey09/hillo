@@ -26,7 +26,7 @@ export function ChatHeader ({ participant, chatId }: ChatHeaderProps) {
             </div>
             <div>
                 <h2 className="font-semibold">{participant?.name || "Unknown User"}</h2>
-                <p className="text-xs text-base-content/70">
+                <p className={`text-xs ${isTyping ? "text-[#F4A261]" : "text-base-content/70"}`}>
                     {isTyping ? "typing..." : isOnline ? "Online" : "Offline"}
                 </p>
             </div>

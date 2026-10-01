@@ -1,10 +1,16 @@
-import { SearchIcon, UsersIcon } from "lucide-react";
+import { SearchIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUsers } from "../hooks/useUsers";
 import { useSocketStore } from "../lib/socket";
 
-export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
+export function NewChatModal({
+    onStartChat,
+    isPending,
+    isOpen,
+    onClose
+
+}: {
     onStartChat: (participantId: string) => void;
     isPending: boolean;
     isOpen: boolean;
@@ -31,6 +37,11 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
         onStartChat(participantId);
     }
 
+    const handleClose = () => {
+        setSearchQuery("");
+        onClose();
+    };
+
     const searchResults = allUsers.filter((u) => {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
@@ -41,25 +52,39 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
     });
 
     return (
-        <dialog className={`modal ${isOpen ? "modal-open" : ""}`}>
-            <div className="modal-box">
-                <h3 className="font-semibold flex items-center gap-2 mb-4">
-                    <UsersIcon className="size-5 text-primary" />
-                    New Chat
-                </h3>
-                <div className="relative mb-4">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/60 z-10 pointer-events-none" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        ref={searchInputRef}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search users by name or email..."
-                        className="input input-bordered w-full pl-10"
-                        autoFocus={true}
-                    />
+        <dialog className={`modal bg-black/60 ${isOpen ? "modal-open" : ""}`}>
+            <div className="modal-box bg-[#212126] px-0 rounded-3xl bg-gradient-to-t from-black/30 via-transparent to-transparent">
+            {/* modal header */}
+                <div className="modal-action mt-0 mb-4 gap-1 items-center justify-start border-b border-[#16161a] w-full px-4 pb-2">
+                    <button
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-[#242428] cursor-pointer hover:bg-[#2D2D30] transition-colors duration-200"
+                        aria-label="Close"
+                        type="button"
+                        onClick={handleClose}
+                    >
+                        <X className="size-4 text-[#F4A261]" />
+                    </button>
+                    <h3 className="font-semibold">
+                        New Chat
+                    </h3>
                 </div>
-                <div className="max-h-72 overflow-y-auto">
+                {/* search bar */}
+                <div className="relative mb-4 px-4">
+                    <div className="inline-flex items-center bg-[#242428] rounded-full px-3 py-0.5 w-full shadow-sm">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            ref={searchInputRef}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search users by name or email..."
+                            className="input peer bg-transparent border-none placeholder:text-[#888] outline-none ring-0 order-last w-full"
+                            autoFocus={true}
+                        />
+                        <SearchIcon className="peer-focus:hidden order-first size-5 text-[#888] pointer-events-none" />
+                    </div>
+                </div>
+                {/* search results or no results */}
+                <div className="max-h-72 overflow-y-auto px-4">
                     {searchResults.length === 0 ? (
                         <div className="py-8 text-center text-base-content/60 text-sm">
                             {searchQuery ? "No users found" : "Start typing to search"}
@@ -71,43 +96,34 @@ export function NewChatModal({ onStartChat, isPending, isOpen, onClose }: {
                                     key={u._id}
                                     onClick={() => handleStartChat(u._id)}
                                     disabled={isPending}
-                                    className="flex items-center justify-start gap-3 p-2 hover:bg-base-300 rounded-lg cursor-pointer w-full normal-case transition-colors duration-200"
+                                    type="submit"
+                                    className="flex items-center p-2 hover:bg-[#16161a]/60 active:opacity-90 rounded-lg cursor-pointer w-full normal-case transition-colors duration-200"
                                 >
                                     <div className="relative">
-                                        <img src={u.avatar} alt="" className="w-10 h-10 rounded-full" />
+                                        <img src={u.avatar} alt="" className="w-[48px] h-10 rounded-full" />
                                         {isOnline(u._id) && (
                                             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-base-200" />
                                         )}
                                     </div>
-                                    <div className="text-left">
-                                        <p className="font-medium text-sm">{u.name}</p>
-                                        <p className="text-xs text-base-content/70">{u.email}</p>
+                                    <div className="flex flex-col items-start w-full ml-3 border-b border-white/5 pb-2">
+                                        <div className="flex items-center justify-between w-full">
+                                            <p className="font-medium text-sm truncate">
+                                                {u.name}
+                                            </p>
+                                            {isOnline(u._id) && <p className="text-xs text-[#F4A261] font-medium">Online</p>}
+                                        </div>
+                                        <p className="text-xs text-base-content/70 mt-0.5">{u.email}</p>
                                     </div>
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
-                <div className="flex justify-between items-center">
-                    <p className="text-[10px] text-base-content/30 w-xs mt-4">*The list will be removed later, so that users can search others via there usernames only.</p>
-                    <div className="modal-action">
-                        <form method="dialog">
-                            <button
-                                className="btn"
-                                onClick={() => {
-                                    setSearchQuery("");
-                                    onClose();
-                                }}
-                            >
-                                Close
-                            </button>
-                        </form>
-                    </div>
-                </div>
             </div>
-            <form method="dialog" className="modal-backdrop" onClick={onClose}>
-                <button>Close</button>
-            </form>
+            <div
+                className="modal-backdrop"
+                onClick={handleClose}
+            />
         </dialog>
     )
 }
